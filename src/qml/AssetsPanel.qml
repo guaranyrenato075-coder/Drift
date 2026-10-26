@@ -740,6 +740,7 @@ PanelFrame {
         "text": qsTr("Text"),
         "subtitles": qsTr("Subtitles"),
         "speech": qsTr("Speech"),
+        "script_ai": qsTr("Roteiro IA"),
         "stickers": qsTr("Stickers"),
         "shapes": qsTr("Shapes"),
         "scenes": qsTr("Scenes"),
@@ -760,6 +761,7 @@ PanelFrame {
         ListElement { tabId: "text"; icon: 1; separatorAfter: false }
         ListElement { tabId: "subtitles"; icon: 2; separatorAfter: false }
         ListElement { tabId: "speech"; icon: 13; separatorAfter: false }
+        ListElement { tabId: "script_ai"; icon: 14; separatorAfter: false }
         ListElement { tabId: "stickers"; icon: 3; separatorAfter: false }
         ListElement { tabId: "shapes"; icon: 4; separatorAfter: false }
         ListElement { tabId: "masks"; icon: 11; separatorAfter: true }
@@ -783,7 +785,8 @@ PanelFrame {
         Theme.icons.listVideo,
         Theme.icons.mask,
         Theme.icons.store,
-        Theme.icons.micVocal
+        Theme.icons.micVocal,
+        Theme.icons.sparkles
     ]
     property int activeTab: locked ? tabIndexOf(lockedTab) : 0
     readonly property string currentTabId: tabsModel.get(activeTab).tabId
@@ -951,6 +954,19 @@ PanelFrame {
                 opacity: root.tabOpacity
                 sourceComponent: Component {
                     SpeechTab { }
+                }
+            }
+
+            Loader {
+                active: root.currentTabId === "script_ai"
+                visible: active
+                width: parent.width
+                height: parent.height - assetsHeader.height
+                opacity: root.tabOpacity
+                sourceComponent: Component {
+                    ScriptAiTab {
+                        onAdded: root.addCompleted()
+                    }
                 }
             }
 
