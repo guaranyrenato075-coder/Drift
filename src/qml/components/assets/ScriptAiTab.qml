@@ -14,6 +14,7 @@ Item {
     property var scenesList: []
     property string activeProfile: "filosofico"
     property string selectedAspectRatio: "16:9"
+    property int playingSceneOrder: -1
 
     function sendAiRequest(endpoint, payload, callback) {
         root.isBusy = true
@@ -37,6 +38,25 @@ Item {
             }
         }
         xhr.send(JSON.stringify(payload))
+    }
+
+    function playSceneAudio(sceneOrder) {
+        root.playingSceneOrder = sceneOrder
+        root.sendAiRequest("play_audio", { scene_order: sceneOrder, project_id: "" }, function(ok, res) {
+            if (!ok) {
+                root.statusMessage = qsTr("Erro ao tocar áudio da Cena %1").arg(sceneOrder)
+                root.playingSceneOrder = -1
+            } else {
+                root.statusMessage = qsTr("Tocando áudio da Cena %1...").arg(sceneOrder)
+            }
+        })
+    }
+
+    function stopSceneAudio() {
+        root.playingSceneOrder = -1
+        root.sendAiRequest("stop_audio", {}, function() {
+            root.statusMessage = qsTr("Áudio interrompido.")
+        })
     }
 
     Flickable {
@@ -63,7 +83,7 @@ Item {
             ThemedLabel {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: qsTr("Diretor de IA: roteirização semântica, ganchos de retenção, perfis de estilo e montagem protegida por etapas.")
+                text: qsTr("Diretor de IA: roteirização semântica, ganchos de retenção, mini-player de áudio e montagem protegida.")
                 color: Theme.c.subtitlesTab.foregroundMuted
                 size: "xs"
             }
@@ -164,7 +184,7 @@ Item {
 
             ScrollView {
                 width: parent.width
-                height: 140
+                height: 130
                 clip: true
 
                 TextArea {
@@ -220,6 +240,9 @@ Item {
                     onClicked: {
                         root.sendAiRequest("voice", { project_id: "" }, function(ok, res) {
                             if (ok) {
+                                if (res.plan && res.plan.scenes) {
+                                    root.scenesList = res.plan.scenes
+                                }
                                 root.statusMessage = qsTr("Voz gerada e alinhada temporalmente!")
                             } else {
                                 root.statusMessage = qsTr("Erro de voz: ") + (res.error || "")
@@ -236,11 +259,93 @@ Item {
                     onClicked: {
                         root.sendAiRequest("search", { project_id: "" }, function(ok, res) {
                             if (ok) {
+                                if (res.plan && res.plan.scenes) {
+                                    root.scenesList = res.plan.scenes
+                                }
                                 root.statusMessage = qsTr("Vídeos e imagens ranqueados com alternativas!")
                             } else {
                                 root.statusMessage = qsTr("Erro de busca: ") + (res.error || "")
                             }
                         })
+                    }
+                }
+            }
+
+            // Scene Audio Auditioning Mini-Player (Shows when scenes are loaded)
+            Column {
+                width: parent.width
+                spacing: Theme.spacingXs
+                visible: root.scenesList.length > 0
+
+                ThemedLabel {
+                    text: qsTr("🎧 Pré-Escuta das Cenas (%1 cenas)").arg(root.scenesList.length)
+                    size: "sm"
+                    font.bold: true
+                }
+
+                Repeater {
+                    model: root.scenesList
+                    delegate: Rectangle {
+                        width: contentCol.width
+                        height: 52
+                        radius: 4
+                        color: Theme.c.panelBackgroundDarker || "#1a1c20"
+                        border.color: root.playingSceneOrder === modelData.order ? "#3b82f6" : "#2d3139"
+                        border.width: root.playingSceneOrder === modelData.order ? 2 : 1
+
+                        Row {
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            spacing: Theme.spacingSm
+
+                            Rectangle {
+                                width: 24
+                                height: 24
+                                radius: 12
+                                color: "#2563eb"
+                                anchors.verticalCenter: parent.verticalCenter
+                                ThemedLabel {
+                                    anchors.centerIn: parent
+                                    text: modelData.order
+                                    size: "xs"
+                                    font.bold: true
+                                    color: "#ffffff"
+                                }
+                            }
+
+                            Column {
+                                width: parent.width - 24 - playBtn.width - Theme.spacingSm * 3
+                                anchors.verticalCenter: parent.verticalCenter
+                                ThemedLabel {
+                                    width: parent.width
+                                    elide: Text.ElideRight
+                                    text: modelData.narration_text || ""
+                                    size: "xs"
+                                    color: "#f1f5f9"
+                                }
+                                ThemedLabel {
+                                    width: parent.width
+                                    elide: Text.ElideRight
+                                    text: (modelData.selected_media ? ("[" + modelData.selected_media.platform + "] ") : "") + (modelData.visual_description || "")
+                                    size: "xs"
+                                    color: "#94a3b8"
+                                }
+                            }
+
+                            ThemedButton {
+                                id: playBtn
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root.playingSceneOrder === modelData.order ? qsTr("⏹ Parar") : qsTr("▶ Ouvir")
+                                variant: root.playingSceneOrder === modelData.order ? "primary" : "secondary"
+                                onClicked: {
+                                    if (root.playingSceneOrder === modelData.order) {
+                                        root.stopSceneAudio()
+                                    } else {
+                                        root.playSceneAudio(modelData.order)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
