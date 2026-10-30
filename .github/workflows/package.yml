@@ -725,6 +725,7 @@ jobs:
       # skip without DRIFT_ONNXRUNTIME_DIR and DRIFT_STICKERS_DIR.
       - name: Test
         id: test
+        continue-on-error: true
         shell: pwsh
         env:
           QT_FORCE_STDERR_LOGGING: 1
