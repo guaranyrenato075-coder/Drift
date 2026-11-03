@@ -72,3 +72,25 @@ third_party/prebuilt/
 .env.*
 
 !resources/diagnostics/bench1080p60.mp4
+
+
+# Drift AI & High Performance Gateway
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+target/
+.cas_store/
+.ram_cache/
+batch_output/
+*.log
+drift_err.log
+drift_out.log
+test_renders/
+test_audio/
+test_cas_store/
+test_cas_temp/
+test_batch_factory_out/
+test_inspect/
+test_ram_cache/

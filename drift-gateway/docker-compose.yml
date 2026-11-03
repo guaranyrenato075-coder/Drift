@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # 1. Banco de Dados PostgreSQL otimizado com PgBouncer embutido
+  postgres:
+    image: edoburu/pgbouncer:latest
+    container_name: drift-db
+    environment:
+      - DB_HOST=postgres-backend
+      - DB_PORT=5432
+      - DB_USER=drift_user
+      - DB_PASSWORD=drift_password
+      - DB_NAME=drift_db
+      - MAX_CLIENT_CONN=1000
+      - DEFAULT_POOL_SIZE=50
+    ports:
+      - "6543:6543" # Porta do PgBouncer
+    networks:
+      - drift-network
+    restart: unless-stopped
+
+  postgres-backend:
+    image: postgres:15-alpine
+    container_name: drift-postgres-core
+    environment:
+      - POSTGRES_USER=drift_user
+      - POSTGRES_PASSWORD=drift_password
+      - POSTGRES_DB=drift_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - drift-network
+    restart: unless-stopped
+
+  # 2. Redis para Cache L2 e Filas BullMQ
+  redis:
+    image: redis:7-alpine
+    container_name: drift-redis
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - drift-network
+    restart: unless-stopped
+
+  # 3. Camada de Orquestração (TypeScript / Fastify)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: drift-api
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://drift_user:drift_password@postgres:6543/drift_db?schema=public
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - drift-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    restart: unless-stopped
+
+  # 4. Microsserviço de Processamento Pesado (Rust)
+  rust-worker:
+    build:
+      context: ./rust-worker
+      dockerfile: Dockerfile
+    container_name: drift-rust-worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://drift_user:drift_password@postgres:6543/drift_db?schema=public
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - drift-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 256M # Consumo minúsculo de RAM garantido pelo Rust
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  drift-network:
+    driver: bridge

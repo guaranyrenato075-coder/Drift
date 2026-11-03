@@ -1,0 +1,80 @@
+{
+  "version": "2026.10.1",
+  "last_updated": "2026-10-30T22:00:00Z",
+  "platforms": {
+    "youtube": {
+      "name": "YouTube",
+      "monetization": {
+        "profanity_first_seconds_limit": 7.0,
+        "profanity_rule": "Nenhum palavrão nos primeiros 7 segundos para monetização verde integral.",
+        "advertiser_friendly_score_min": 75,
+        "restricted_topics": [
+          "armas caseiras", "drogas ilícitas", "terrorismo", "discurso de ódio",
+          "desinformação médica grave", "fraude financeira", "hackeamento de contas"
+        ]
+      },
+      "ai_disclosure": {
+        "required": true,
+        "rule_description": "Conteúdo sintético ou alterado de forma realista deve conter tag obrigatória 'Criado com IA'."
+      },
+      "metadata": {
+        "max_title_chars": 100,
+        "recommended_title_chars": 65,
+        "max_tags_chars": 500
+      },
+      "audio": {
+        "target_lufs": -14.0,
+        "max_true_peak_dbtp": -1.0
+      }
+    },
+    "tiktok": {
+      "name": "TikTok",
+      "community_guidelines": {
+        "shadowban_risk_words": [
+          "compre seguidores", "ganhe dinheiro rapido", "esquema de piramide",
+          "apostas garantidas", "hackear", "remédio milagroso", "fraude"
+        ],
+        "engagement_bait_penalized": true
+      },
+      "ai_disclosure": {
+        "required": true,
+        "rule_description": "Selo 'Gerado por IA' ativado compulsoriamente para vozes sintéticas ou deepfakes."
+      },
+      "safe_zones": {
+        "top_margin_px": 220,
+        "bottom_margin_px": 280,
+        "right_margin_px": 140,
+        "left_margin_px": 50
+      },
+      "audio": {
+        "target_lufs": -14.0,
+        "commercial_music_strict": true
+      }
+    },
+    "instagram": {
+      "name": "Instagram / Meta Reels",
+      "algorithm_guidelines": {
+        "prohibited_watermarks": [
+          "tiktok", "bytedance", "kuaishou", "marca d'água concorrente"
+        ],
+        "watermark_penalty_description": "O algoritmo do Instagram Reels reduz o alcance de vídeos que contenham marcas d'água do TikTok.",
+        "engagement_bait_words": [
+          "comente 'EU QUERO'", "siga para não ter azar", "compartilhe com 10 amigos"
+        ]
+      },
+      "ai_disclosure": {
+        "required": true,
+        "tag_name": "Criado com IA"
+      },
+      "metadata": {
+        "max_caption_chars": 2200,
+        "visible_preview_chars": 125,
+        "recommended_hashtags_count": 5
+      },
+      "audio": {
+        "target_lufs": -14.0
+      }
+    }
+  }
+}
+
