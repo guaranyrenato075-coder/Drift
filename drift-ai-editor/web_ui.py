@@ -67,6 +67,10 @@ from core.thermal_duty_cycle import ThermalDutyCyclePacer
 from core.zero_gpu_occlusion_governor import ZeroGpuOcclusionGovernor
 from core.compact_metadata_indexer import CompactMetadataIndexer
 from audio.direct_clock_resampler import DirectClockAudioResampler
+from editing.lazy_timeline_virtualizer import LazyTimelineVirtualizer
+from audio.flac_in_memory_scratchpad import FlacInMemoryScratchpad
+from storage.zero_fragmentation_preallocator import ZeroFragmentationPreallocator
+from core.green_wattage_capper import GreenWattageCapper
 
 RAM_BUFFER = RamDiskBufferManager()
 MEDIA_DEDUP = MediaDeduplicator()
@@ -1640,6 +1644,71 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "engine": spec.resampler_engine,
                 "args": spec.ffmpeg_filter_args,
                 "speedup": spec.estimated_mixing_speedup_factor
+            })
+        elif self.path == "/api/timeline/virtualize":
+            project_id = data.get("project_id")
+            playhead = int(data.get("playhead_scene", 1))
+            plan = self.repo.get(project_id) if project_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            virtualizer = getattr(self, "_timeline_virtualizer", None)
+            if not virtualizer:
+                self._timeline_virtualizer = LazyTimelineVirtualizer(window_radius=2)
+                virtualizer = self._timeline_virtualizer
+                virtualizer.register_scenes(plan.scenes)
+            w_state = virtualizer.update_playhead(playhead)
+            return self.send_json({
+                "ok": True,
+                "playhead": w_state.current_playhead_scene,
+                "total_scenes": w_state.total_scenes,
+                "active_handles": w_state.active_handles_count,
+                "hibernating_handles": w_state.hibernating_handles_count,
+                "savings_pct": round((w_state.hibernating_handles_count / max(1, w_state.total_scenes)) * 100, 1)
+            })
+        elif self.path == "/api/audio/scratchpad_store":
+            track_name = data.get("track_name", "voice_track")
+            pcm_hex = data.get("pcm_hex", "")
+            raw_pcm = bytes.fromhex(pcm_hex) if pcm_hex else b"\0" * 48000 * 4 # 1 segundo mock
+            scratchpad = getattr(self, "_audio_scratchpad", None)
+            if not scratchpad:
+                self._audio_scratchpad = FlacInMemoryScratchpad()
+                scratchpad = self._audio_scratchpad
+            stats = scratchpad.store_pcm_track(track_name, raw_pcm)
+            return self.send_json({
+                "ok": True,
+                "track": stats.track_name,
+                "duration_sec": stats.duration_sec,
+                "raw_bytes": stats.raw_pcm_bytes,
+                "compressed_bytes": stats.compressed_bytes,
+                "savings_pct": stats.savings_percent
+            })
+        elif self.path == "/api/storage/preallocate":
+            file_path = data.get("file_path", "d:/CUTWIREDRIFT/renders/final_output.mp4")
+            duration = float(data.get("duration_sec", 1200.0))
+            bitrate = float(data.get("bitrate_mbps", 8.0))
+            estimated_size = ZeroFragmentationPreallocator.estimate_video_file_size_bytes(duration, bitrate)
+            res = ZeroFragmentationPreallocator.preallocate_file(file_path, estimated_size)
+            return self.send_json({
+                "ok": res.is_success,
+                "file": res.target_file_path,
+                "preallocated_bytes": res.preallocated_bytes,
+                "preallocated_mb": res.preallocated_mb,
+                "method": res.method_used,
+                "error": res.error_message
+            })
+        elif self.path == "/api/eco/wattage_profile":
+            profile_name = data.get("profile", "balanced_power")
+            p_profile = GreenWattageCapper.calculate_power_profile(profile_name)
+            mask_val = int(p_profile.affinity_mask_hex, 16)
+            applied = GreenWattageCapper.apply_affinity(mask_val)
+            return self.send_json({
+                "ok": True,
+                "profile": p_profile.profile_name,
+                "affinity_hex": p_profile.affinity_mask_hex,
+                "active_cores": p_profile.active_core_count,
+                "wattage_reduction_pct": p_profile.estimated_wattage_reduction_pct,
+                "tdp_watts": p_profile.estimated_tdp_watts,
+                "affinity_applied": applied
             })
         elif self.path == "/api/copyright_remediate":
             project_id = data.get("project_id")

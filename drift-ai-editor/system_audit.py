@@ -176,6 +176,10 @@ def audit_system():
         "core.zero_gpu_occlusion_governor",
         "core.compact_metadata_indexer",
         "audio.direct_clock_resampler",
+        "editing.lazy_timeline_virtualizer",
+        "audio.flac_in_memory_scratchpad",
+        "storage.zero_fragmentation_preallocator",
+        "core.green_wattage_capper",
     ]
 
     for mod_name in modules_to_test:
