@@ -59,6 +59,10 @@ from core.eco_governor import EcoGovernor
 from core.ram_working_set_flusher import RamWorkingSetFlusher
 from editing.draft_proxy_engine import DraftProxyEngine
 from editing.lossless_stream_copy_detector import LosslessStreamCopyDetector
+from core.disk_io_governor import DiskIoGovernor
+from editing.fast_decode_optimizer import FastDecodeOptimizer
+from core.sleep_inhibit_governor import SleepInhibitGovernor
+from storage.rolling_cache_purge import RollingCachePurgeManager
 
 RAM_BUFFER = RamDiskBufferManager()
 MEDIA_DEDUP = MediaDeduplicator()
@@ -1535,6 +1539,48 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "audio_codec": eval_res.recommended_audio_codec,
                 "speedup_factor": eval_res.estimated_speedup_factor,
                 "reason": eval_res.bypass_reason
+            })
+        elif self.path == "/api/eco/disk_io":
+            action = data.get("action", "begin")
+            res = DiskIoGovernor.begin_background_io() if action == "begin" else DiskIoGovernor.end_background_io()
+            return self.send_json({
+                "ok": res.is_background_io_active,
+                "platform": res.platform,
+                "error": res.error_message,
+                "active": DiskIoGovernor.is_active()
+            })
+        elif self.path == "/api/render/fast_decode":
+            threads = int(data.get("threads", 2))
+            is_preview = bool(data.get("is_preview", False))
+            profile = FastDecodeOptimizer.get_trim_and_slice_args(threads=threads, is_preview_mode=is_preview)
+            return self.send_json({
+                "ok": True,
+                "tune": profile.tune_mode,
+                "skip_frames": profile.skip_frames,
+                "input_args": profile.ffmpeg_input_args,
+                "output_args": profile.ffmpeg_output_args,
+                "cpu_savings_pct": profile.estimated_cpu_saving_percent
+            })
+        elif self.path == "/api/eco/sleep_inhibit":
+            action = data.get("action", "inhibit")
+            res = SleepInhibitGovernor.inhibit_sleep() if action == "inhibit" else SleepInhibitGovernor.release_sleep()
+            return self.send_json({
+                "ok": True,
+                "is_inhibited": res.is_sleep_inhibited,
+                "active_jobs": res.active_jobs_count,
+                "platform": res.platform
+            })
+        elif self.path == "/api/storage/purge_cache":
+            cache_dir = data.get("cache_dir", "d:/CUTWIREDRIFT/renders")
+            max_bytes = int(data.get("max_bytes_quota", 4 * 1024 * 1024 * 1024))
+            report = RollingCachePurgeManager.enforce_cache_quota(cache_dir, max_bytes_quota=max_bytes)
+            return self.send_json({
+                "ok": True,
+                "dir": report.directory_scanned,
+                "files_deleted": report.files_deleted,
+                "bytes_reclaimed": report.bytes_reclaimed,
+                "bytes_after": report.total_bytes_after,
+                "quota_respected": report.is_quota_respected
             })
         elif self.path == "/api/copyright_remediate":
             project_id = data.get("project_id")

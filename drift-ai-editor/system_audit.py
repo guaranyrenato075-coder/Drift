@@ -168,6 +168,10 @@ def audit_system():
         "core.ram_working_set_flusher",
         "editing.draft_proxy_engine",
         "editing.lossless_stream_copy_detector",
+        "core.disk_io_governor",
+        "editing.fast_decode_optimizer",
+        "core.sleep_inhibit_governor",
+        "storage.rolling_cache_purge",
     ]
 
     for mod_name in modules_to_test:
