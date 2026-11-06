@@ -51,6 +51,10 @@ from director.long_form_retention_director import LongFormRetentionDirector
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
+from pipeline.multilingual_audio_packager import MultilingualAudioPackager
+from audio.smart_silence_breath_stripper import SmartSilenceBreathStripper
+from editing.motion_infographics_generator import MotionInfographicsGenerator
+from media.b_roll_gap_filler import BRollGapFiller
 
 RAM_BUFFER = RamDiskBufferManager()
 MEDIA_DEDUP = MediaDeduplicator()
@@ -1381,6 +1385,84 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "total_lines": karaoke.total_lines,
                 "ass_content": karaoke.ass_script_content,
                 "output_filename": karaoke.output_filename
+            })
+        elif self.path == "/api/export/multilingual":
+            project_id = data.get("project_id", "drift_proj")
+            video_path = data.get("video_path", "d:/CUTWIREDRIFT/renders/output.mp4")
+            tracks = data.get("tracks", [
+                {"language": "pt", "file_path": "d:/CUTWIREDRIFT/audio_pt.mp3", "title": "Português (Original)"},
+                {"language": "en", "file_path": "d:/CUTWIREDRIFT/audio_en.mp3", "title": "English (Dubbed)"},
+                {"language": "es", "file_path": "d:/CUTWIREDRIFT/audio_es.mp3", "title": "Español"}
+            ])
+            spec = MultilingualAudioPackager.create_multilingual_spec(project_id, video_path, tracks)
+            return self.send_json({
+                "ok": True,
+                "project_id": spec.project_id,
+                "output_file": spec.output_target_path,
+                "total_tracks": len(spec.tracks),
+                "tracks": [{"lang": t.language_code, "title": t.title, "default": t.is_default} for t in spec.tracks],
+                "ffmpeg_cmd": spec.ffmpeg_command_args,
+                "platforms": spec.supported_platforms
+            })
+        elif self.path == "/api/audio/strip_silence":
+            dur = float(data.get("duration_sec", 120.0))
+            thresh = float(data.get("threshold_db", -38.0))
+            report = SmartSilenceBreathStripper.analyze_and_generate_filter(dur, silence_threshold_db=thresh)
+            return self.send_json({
+                "ok": True,
+                "original_duration": report.original_duration_sec,
+                "tightened_duration": report.tightened_duration_sec,
+                "seconds_saved": report.seconds_saved,
+                "percentage_tightened": report.percentage_tightened,
+                "pauses_removed": report.detected_pauses_count,
+                "ffmpeg_filter": report.ffmpeg_filter
+            })
+        elif self.path == "/api/infographics/scan":
+            project_id = data.get("project_id")
+            plan = self.repo.get(project_id) if project_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            info_plan = MotionInfographicsGenerator.scan_project_scenes(plan.scenes)
+            return self.send_json({
+                "ok": True,
+                "total_elements": info_plan.total_elements,
+                "style": info_plan.style_theme,
+                "items": [
+                    {
+                        "scene": item.scene_order,
+                        "type": item.data_type,
+                        "match": item.raw_match,
+                        "target_value": item.target_value,
+                        "label": item.label_text,
+                        "filter": item.ffmpeg_drawtext_filter
+                    }
+                    for item in info_plan.items
+                ]
+            })
+        elif self.path == "/api/broll/plan":
+            project_id = data.get("project_id")
+            plan = self.repo.get(project_id) if project_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            broll_plan = BRollGapFiller.generate_plan(plan.scenes)
+            return self.send_json({
+                "ok": True,
+                "total_insertions": broll_plan.total_insertions,
+                "coverage_ratio": broll_plan.coverage_ratio,
+                "insertions": [
+                    {
+                        "scene": ins.target_scene_order,
+                        "concept": ins.matched_concept,
+                        "overlay_type": ins.overlay_type,
+                        "provider": ins.recommended_provider,
+                        "query_pt": ins.search_query_pt,
+                        "query_en": ins.search_query_en,
+                        "start_offset": ins.start_offset_sec,
+                        "duration": ins.duration_sec,
+                        "opacity": ins.blend_opacity
+                    }
+                    for ins in broll_plan.insertions
+                ]
             })
         elif self.path == "/api/copyright_remediate":
             project_id = data.get("project_id")

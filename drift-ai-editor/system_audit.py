@@ -160,6 +160,10 @@ def audit_system():
         "audio.multi_chapter_mood_soundtrack",
         "editing.smart_ken_burns_punchin",
         "pipeline.render_checkpoint_manager",
+        "pipeline.multilingual_audio_packager",
+        "audio.smart_silence_breath_stripper",
+        "editing.motion_infographics_generator",
+        "media.b_roll_gap_filler",
     ]
 
     for mod_name in modules_to_test:
