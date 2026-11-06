@@ -63,6 +63,10 @@ from core.disk_io_governor import DiskIoGovernor
 from editing.fast_decode_optimizer import FastDecodeOptimizer
 from core.sleep_inhibit_governor import SleepInhibitGovernor
 from storage.rolling_cache_purge import RollingCachePurgeManager
+from core.thermal_duty_cycle import ThermalDutyCyclePacer
+from core.zero_gpu_occlusion_governor import ZeroGpuOcclusionGovernor
+from core.compact_metadata_indexer import CompactMetadataIndexer
+from audio.direct_clock_resampler import DirectClockAudioResampler
 
 RAM_BUFFER = RamDiskBufferManager()
 MEDIA_DEDUP = MediaDeduplicator()
@@ -1581,6 +1585,61 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "bytes_reclaimed": report.bytes_reclaimed,
                 "bytes_after": report.total_bytes_after,
                 "quota_respected": report.is_quota_respected
+            })
+        elif self.path == "/api/eco/thermal_pacing":
+            chunk_idx = int(data.get("chunk_index", 1))
+            pacer = getattr(self, "_thermal_pacer", None)
+            if not pacer:
+                self._thermal_pacer = ThermalDutyCyclePacer(chunks_per_cooling_cycle=5, pause_duration_sec=1.5)
+                pacer = self._thermal_pacer
+            decision = pacer.record_chunk_completed(chunk_idx)
+            return self.send_json({
+                "ok": True,
+                "chunk_index": decision.chunk_index,
+                "consecutive": decision.consecutive_renders,
+                "should_pause": decision.should_pause_for_cooling,
+                "pause_sec": decision.cooling_pause_sec,
+                "temp_drop_est": decision.estimated_temp_drop_celsius,
+                "reason": decision.reason
+            })
+        elif self.path == "/api/eco/occlusion_state":
+            occ = ZeroGpuOcclusionGovernor.get_occlusion_state()
+            return self.send_json({
+                "ok": True,
+                "is_minimized": occ.is_minimized,
+                "is_foreground": occ.is_foreground,
+                "target_fps": occ.target_gui_fps,
+                "gpu_active": occ.gpu_render_active,
+                "mode": occ.mode_description
+            })
+        elif self.path == "/api/storage/compact_index":
+            project_id = data.get("project_id")
+            plan = self.repo.get(project_id) if project_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            indexer = CompactMetadataIndexer()
+            stats = indexer.index_scenes(plan.scenes)
+            return self.send_json({
+                "ok": True,
+                "total_scenes": stats.total_scenes_indexed,
+                "raw_bytes": stats.raw_json_bytes,
+                "compressed_bytes": stats.compressed_bytes,
+                "compression_ratio": stats.compression_ratio,
+                "savings_pct": stats.memory_savings_percent
+            })
+        elif self.path == "/api/audio/resample_spec":
+            in_path = data.get("input_path", "audio.mp3")
+            target_hz = int(data.get("target_hz", 48000))
+            spec = DirectClockAudioResampler.build_resample_spec(in_path, target_hz=target_hz)
+            return self.send_json({
+                "ok": True,
+                "input": spec.input_audio_path,
+                "output": spec.output_audio_path,
+                "hz": spec.target_sample_rate_hz,
+                "channels": spec.target_channels,
+                "engine": spec.resampler_engine,
+                "args": spec.ffmpeg_filter_args,
+                "speedup": spec.estimated_mixing_speedup_factor
             })
         elif self.path == "/api/copyright_remediate":
             project_id = data.get("project_id")

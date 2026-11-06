@@ -172,6 +172,10 @@ def audit_system():
         "editing.fast_decode_optimizer",
         "core.sleep_inhibit_governor",
         "storage.rolling_cache_purge",
+        "core.thermal_duty_cycle",
+        "core.zero_gpu_occlusion_governor",
+        "core.compact_metadata_indexer",
+        "audio.direct_clock_resampler",
     ]
 
     for mod_name in modules_to_test:
