@@ -55,6 +55,10 @@ from pipeline.multilingual_audio_packager import MultilingualAudioPackager
 from audio.smart_silence_breath_stripper import SmartSilenceBreathStripper
 from editing.motion_infographics_generator import MotionInfographicsGenerator
 from media.b_roll_gap_filler import BRollGapFiller
+from core.eco_governor import EcoGovernor
+from core.ram_working_set_flusher import RamWorkingSetFlusher
+from editing.draft_proxy_engine import DraftProxyEngine
+from editing.lossless_stream_copy_detector import LosslessStreamCopyDetector
 
 RAM_BUFFER = RamDiskBufferManager()
 MEDIA_DEDUP = MediaDeduplicator()
@@ -1463,6 +1467,74 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                     }
                     for ins in broll_plan.insertions
                 ]
+            })
+        elif self.path == "/api/eco/policy":
+            mode = data.get("mode", "eco_silent")
+            policy = EcoGovernor.calculate_thread_budget(mode)
+            applied = EcoGovernor.apply_process_priority(policy.windows_priority_class)
+            return self.send_json({
+                "ok": True,
+                "mode": policy.mode,
+                "total_threads": policy.total_system_threads,
+                "worker_threads": policy.assigned_worker_threads,
+                "reserved_threads": policy.reserved_os_threads,
+                "priority_class": policy.windows_priority_class,
+                "cpu_cap_percent": policy.target_cpu_cap_percent,
+                "windows_priority_applied": applied
+            })
+        elif self.path == "/api/eco/ram_flush":
+            report = RamWorkingSetFlusher.flush()
+            return self.send_json({
+                "ok": True,
+                "freed_objects": report.freed_python_objects,
+                "working_set_before_mb": report.working_set_before_mb,
+                "working_set_after_mb": report.working_set_after_mb,
+                "memory_reclaimed_mb": report.memory_reclaimed_mb,
+                "windows_api_applied": report.is_windows_api_applied
+            })
+        elif self.path == "/api/proxy/session":
+            project_id = data.get("project_id")
+            plan = self.repo.get(project_id) if project_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            session = DraftProxyEngine.build_session(project_id, plan.scenes)
+            return self.send_json({
+                "ok": True,
+                "project_id": session.project_id,
+                "draft_active": session.is_draft_mode_active,
+                "total_proxies": session.total_proxies,
+                "proxies_dir": session.proxies_dir,
+                "mappings": [
+                    {
+                        "scene": m.scene_order,
+                        "original": m.original_media_path,
+                        "proxy": m.proxy_media_path,
+                        "resolution": m.scale_resolution,
+                        "is_image": m.is_image
+                    }
+                    for m in session.mappings.values()
+                ]
+            })
+        elif self.path == "/api/render/evaluate_stream_copy":
+            media_path = data.get("media_path", "sample.mp4")
+            effects = bool(data.get("has_effects", False))
+            eval_res = LosslessStreamCopyDetector.evaluate_stream(
+                media_path=media_path,
+                has_effects_applied=effects,
+                codec_v=data.get("codec_v", "h264"),
+                codec_a=data.get("codec_a", "aac"),
+                width=int(data.get("width", 1920)),
+                height=int(data.get("height", 1080))
+            )
+            return self.send_json({
+                "ok": True,
+                "media_path": eval_res.media_path,
+                "can_copy_video": eval_res.can_copy_video_stream,
+                "can_copy_audio": eval_res.can_copy_audio_stream,
+                "video_codec": eval_res.recommended_video_codec,
+                "audio_codec": eval_res.recommended_audio_codec,
+                "speedup_factor": eval_res.estimated_speedup_factor,
+                "reason": eval_res.bypass_reason
             })
         elif self.path == "/api/copyright_remediate":
             project_id = data.get("project_id")

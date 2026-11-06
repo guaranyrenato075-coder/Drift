@@ -164,6 +164,10 @@ def audit_system():
         "audio.smart_silence_breath_stripper",
         "editing.motion_infographics_generator",
         "media.b_roll_gap_filler",
+        "core.eco_governor",
+        "core.ram_working_set_flusher",
+        "editing.draft_proxy_engine",
+        "editing.lossless_stream_copy_detector",
     ]
 
     for mod_name in modules_to_test:
