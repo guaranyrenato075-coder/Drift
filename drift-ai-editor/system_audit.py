@@ -156,6 +156,10 @@ def audit_system():
         "core.memory_manager",
         "core.smart_cache",
         "director.context_pruner",
+        "director.long_form_retention_director",
+        "audio.multi_chapter_mood_soundtrack",
+        "editing.smart_ken_burns_punchin",
+        "pipeline.render_checkpoint_manager",
     ]
 
     for mod_name in modules_to_test:

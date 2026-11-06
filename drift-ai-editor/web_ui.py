@@ -47,6 +47,10 @@ from core.ram_disk_buffer import RamDiskBufferManager
 from storage.media_deduplicator import MediaDeduplicator
 from media.speculative_prefetcher import SpeculativeMediaPrefetcher
 from editing.adaptive_crf_encoder import AdaptiveCrfEncoder
+from director.long_form_retention_director import LongFormRetentionDirector
+from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
+from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
+from pipeline.render_checkpoint_manager import RenderCheckpointManager
 
 RAM_BUFFER = RamDiskBufferManager()
 MEDIA_DEDUP = MediaDeduplicator()
@@ -1273,6 +1277,97 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "speedup_factor": p_plan.estimated_speedup_factor,
                 "concat_manifest": p_plan.ffmpeg_concat_manifest,
                 "final_output": p_plan.final_output_path
+            })
+        elif self.path == "/api/retention/structure":
+            project_id = data.get("project_id")
+            plan = self.repo.get(project_id) if project_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            pacing = LongFormRetentionDirector.structure_narrative_arc(plan.scenes)
+            return self.send_json({
+                "ok": True,
+                "total_scenes": pacing.total_scenes,
+                "estimated_duration_sec": pacing.estimated_duration_sec,
+                "acts": pacing.acts,
+                "retention_score": pacing.retention_score,
+                "hooks": [
+                    {
+                        "scene_order": h.scene_order,
+                        "minute_mark": h.minute_mark,
+                        "hook_type": h.hook_type,
+                        "phrase": h.suggested_phrase,
+                        "action": h.pacing_action
+                    }
+                    for h in pacing.hooks_inserted
+                ]
+            })
+        elif self.path == "/api/soundtrack/multi_chapter":
+            project_id = data.get("project_id")
+            plan = self.repo.get(project_id) if project_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            tot_dur = sum(s.duration if s.duration > 0 else 6.0 for s in plan.scenes)
+            audio_plan = MultiChapterMoodSoundtrackOrchestrator.generate_soundtrack_plan(tot_dur)
+            return self.send_json({
+                "ok": True,
+                "total_duration_sec": audio_plan.total_duration_sec,
+                "total_segments": audio_plan.total_segments,
+                "ducking": audio_plan.ducking_profile,
+                "segments": [
+                    {
+                        "index": seg.segment_index,
+                        "mood": seg.mood,
+                        "start_sec": seg.start_sec,
+                        "end_sec": seg.end_sec,
+                        "duration": seg.duration_sec,
+                        "track": seg.music_file_path,
+                        "crossfade_sec": seg.crossfade_duration_sec
+                    }
+                    for seg in audio_plan.segments
+                ]
+            })
+        elif self.path == "/api/effects/ken_burns":
+            project_id = data.get("project_id")
+            plan = self.repo.get(project_id) if project_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            raw_scenes = [
+                {
+                    "order": s.order,
+                    "duration": s.duration,
+                    "media_type": "image" if not (s.selected_media and s.selected_media.local_cached_path and s.selected_media.local_cached_path.endswith((".mp4", ".mov", ".mkv"))) else "video",
+                    "tags": s.keywords
+                }
+                for s in plan.scenes
+            ]
+            effects = SmartKenBurnsPunchInEngine.apply_to_project_scenes(raw_scenes)
+            return self.send_json({
+                "ok": True,
+                "total_effects": len(effects),
+                "effects": [
+                    {
+                        "scene_order": e.scene_order,
+                        "motion_type": e.motion_type,
+                        "start_scale": e.start_scale,
+                        "end_scale": e.end_scale,
+                        "duration": e.duration_sec,
+                        "filter": e.ffmpeg_video_filter
+                    }
+                    for e in effects
+                ]
+            })
+        elif self.path == "/api/render/checkpoint_status":
+            project_id = data.get("project_id", "drift_proj")
+            total_chunks = int(data.get("total_chunks", 10))
+            state = RenderCheckpointManager.load_or_init_state(project_id, total_chunks)
+            return self.send_json({
+                "ok": True,
+                "project_id": state.project_id,
+                "total_chunks": state.total_chunks,
+                "completed_chunks": state.completed_chunks,
+                "pending_chunks": state.pending_chunks,
+                "is_fully_completed": state.is_fully_completed,
+                "checkpoint_file": state.checkpoint_file
             })
         elif self.path == "/api/captions/karaoke":
             project_id = data.get("project_id")
