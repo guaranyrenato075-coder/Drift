@@ -33,6 +33,7 @@ from pipeline.chunked_parallel_renderer import ChunkedParallelRenderer
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
 from pipeline.multilingual_audio_packager import MultilingualAudioPackager
 from audio.smart_silence_breath_stripper import SmartSilenceBreathStripper
+from pipeline.mega_duration_architect import MegaDurationArchitect
 
 def run_hard_mode_audit():
     print("=" * 70)
@@ -136,12 +137,24 @@ def run_hard_mode_audit():
     print(f"  -> Timeline Virtualizada: {w_state.active_handles_count} ativas, {w_state.hibernating_handles_count} hibernando (96.7% poupados) | Stream Copy: {stream_eval.recommended_video_codec} ({stream_eval.estimated_speedup_factor}x) em {t1 - t0:.4f}s.")
 
     # 8. Renderização Paralela & Crash-Proof Checkpoint Plan
-    print("\n[STRESS 8/8] Fatiando 1200s em Chunks Paralelos e Pré-Alocação de Disco...")
+    print("\n[STRESS 8/9] Fatiando 1200s em Chunks Paralelos e Pré-Alocação de Disco...")
     t0 = time.perf_counter()
     p_plan = ChunkedParallelRenderer.create_parallel_plan(plan, target_chunk_sec=18.0)
     est_size = ZeroFragmentationPreallocator.estimate_video_file_size_bytes(1200.0, 8.0)
     t1 = time.perf_counter()
     print(f"  -> Plano de Render: {p_plan.total_chunks} chunks de 18s | Tamanho Pré-alocado: {est_size / (1024*1024):.1f} MB | Speedup Estimado: {p_plan.estimated_speedup_factor}x em {t1 - t0:.4f}s.")
+
+    # 9. Mega Produção Hierárquica de 45 Minutos (>20 min)
+    print("\n[STRESS 9/9] Orquestrando Mega Produção de 45 Minutos (Hierarchical Mega-Doc)...")
+    t0 = time.perf_counter()
+    mega_plan = MegaDurationArchitect.plan_mega_production(
+        topic="A História Secreta do Cosmos",
+        target_minutes=45.0
+    )
+    ch_render = MegaDurationArchitect.simulate_chapter_render_lifecycle(mega_plan, chapter_index=1)
+    manifest = MegaDurationArchitect.generate_concat_manifest(mega_plan)
+    t1 = time.perf_counter()
+    print(f"  -> Mega-Doc: {mega_plan.total_chapters} Capítulos | {mega_plan.total_scenes} Cenas ({mega_plan.estimated_total_duration_sec:.1f}s) | RAM Budget: {mega_plan.ram_budget_mb}MB | Concatenação Lossless Pronta em {t1 - t0:.4f}s.")
 
     total_time = time.perf_counter() - start_all
     print("\n" + "=" * 70)
@@ -163,3 +176,4 @@ def run_hard_mode_audit():
 if __name__ == "__main__":
     success = run_hard_mode_audit()
     sys.exit(0 if success else 1)
+

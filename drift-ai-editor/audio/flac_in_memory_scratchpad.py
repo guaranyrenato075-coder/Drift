@@ -68,3 +68,4 @@ class FlacInMemoryScratchpad:
 
     def get_total_allocated_bytes(self) -> int:
         return sum(len(b) for b in self._compressed_buffers.values())
+

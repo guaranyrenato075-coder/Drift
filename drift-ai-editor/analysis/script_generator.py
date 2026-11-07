@@ -1,9 +1,13 @@
 import random
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 class ScriptGenerator:
     """
-    Generates structured video scripts based on topics and formats (Shorts 9:16 or Long 16:9).
+    Generates structured video scripts based on topics and formats:
+    - shorts (30-60s)
+    - standard (3-5 minutes)
+    - documentary (10-20 minutes)
+    - mega_doc (20-60+ minutes)
     """
 
     TEMPLATES = {
@@ -33,21 +37,29 @@ class ScriptGenerator:
         ]
     }
 
+    LONG_FORM_ACT_EXPANSIONS = [
+        ("A Origem do Enigma", "Visão panorâmica em drone estabelecendo a grandeza do cenário.", ["origem", "cenário", "abertura"], ["cinematic", "overview", "drone"]),
+        ("O Primeiro Sinal de Alerta", "Câmera lenta aproximando de evidências cruciais e detalhes técnicos.", ["detalhe", "alerta", "análise"], ["macro", "investigation", "clue"]),
+        ("A Virada Inesperada", "Transição veloz e iluminação dramática revelando nova perspectiva.", ["mudança", "tensão", "drama"], ["dramatic", "pivot", "shadows"]),
+        ("O Ponto de Máxima Tensão", "Planos fechados e cortes intensificados destacando o clímax.", ["clímax", "pressão", "foco"], ["intensity", "crisis", "pressure"]),
+        ("A Resolução e o Legado", "Iluminação dourada ao pôr do sol transmitindo encerramento triunfal.", ["triunfo", "legado", "conclusão"], ["golden hour", "resolution", "legacy"])
+    ]
+
     @classmethod
-    def generate(cls, topic: str, duration_type: str = "shorts") -> str:
+    def generate(cls, topic: str, duration_type: str = "shorts", duration_minutes: Optional[float] = None) -> str:
         """
-        Generates a formatted script ready for ScriptSegmenter.
+        Generates a formatted script ready for ScriptSegmenter and Pipeline Planning.
+        Supports: 'shorts' (30s), 'standard' (3-5m), 'documentary' (10-20m) and 'mega_doc' (20-60+m).
         """
         topic_lower = topic.lower()
         selected_scenes = None
 
         for key in cls.TEMPLATES:
             if key in topic_lower:
-                selected_scenes = cls.TEMPLATES[key]
+                selected_scenes = list(cls.TEMPLATES[key])
                 break
 
         if not selected_scenes:
-            # Fallback dynamic script based on topic words
             clean_topic = topic.strip()
             selected_scenes = [
                 (f"Hoje você vai descobrir algo fascinante sobre {clean_topic}.", f"Cena dinâmica apresentando o tema {clean_topic}.", ["abertura", "visão"], ["cinematic", "overview"]),
@@ -56,9 +68,32 @@ class ScriptGenerator:
                 (f"Aplique isso no seu dia a dia e veja a transformação acontecer.", f"Conclusão inspiradora com iluminação dourada do sol.", ["sucesso", "transformação"], ["sunrise", "inspiration"])
             ]
 
-        # If shorts, keep 3 or 4 scenes (approx 30s)
+        # Multi-Duration Expansion
+        is_mega = duration_type in ("mega_doc", "mega", "documentary") or (duration_minutes and duration_minutes >= 20.0)
+        is_doc = duration_type in ("documentary", "long") or (duration_minutes and duration_minutes >= 10.0)
+
+        scenes_to_render = []
+        if is_mega:
+            # Expande para mega documentário (ex: 20-30+ cenas base no script)
+            reps = 6 if duration_type == "mega_doc" or (duration_minutes and duration_minutes >= 30) else 4
+            for act_idx in range(reps):
+                act_name, act_visual, pt_kw, en_kw = cls.LONG_FORM_ACT_EXPANSIONS[act_idx % len(cls.LONG_FORM_ACT_EXPANSIONS)]
+                for s_idx, (base_narration, base_vis, base_pt, base_en) in enumerate(selected_scenes):
+                    extended_narration = f"[Bloco {act_idx + 1} - {act_name}] {base_narration} Compreender isso aprofunda o impacto de {topic}."
+                    extended_vis = f"{act_visual} {base_vis}"
+                    scenes_to_render.append((extended_narration, extended_vis, base_pt + pt_kw, base_en + en_kw))
+        elif is_doc:
+            # 10 a 20 minutos (~12-16 cenas no script base)
+            for act_idx in range(3):
+                act_name, act_visual, pt_kw, en_kw = cls.LONG_FORM_ACT_EXPANSIONS[act_idx % len(cls.LONG_FORM_ACT_EXPANSIONS)]
+                for base_narration, base_vis, base_pt, base_en in selected_scenes:
+                    scenes_to_render.append((f"{act_name}: {base_narration}", f"{act_visual} {base_vis}", base_pt, base_en))
+        else:
+            # Shorts ou Padrão (3-4 cenas)
+            scenes_to_render = selected_scenes
+
         lines: List[str] = []
-        for idx, (narration, visual, pt_kws, en_kws) in enumerate(selected_scenes, 1):
+        for idx, (narration, visual, pt_kws, en_kws) in enumerate(scenes_to_render, 1):
             lines.append(f"CENA {idx:02d}")
             lines.append(f"NARRAÇÃO: {narration}")
             lines.append(f"DESCRIÇÃO VISUAL: {visual}")
@@ -66,4 +101,3 @@ class ScriptGenerator:
             lines.append("")
 
         return "\n".join(lines)
-

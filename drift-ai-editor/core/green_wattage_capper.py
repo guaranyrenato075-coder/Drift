@@ -74,3 +74,4 @@ class GreenWattageCapper:
             return bool(res)
         except Exception:
             return False
+

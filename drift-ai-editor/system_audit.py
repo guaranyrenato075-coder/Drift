@@ -180,6 +180,7 @@ def audit_system():
         "audio.flac_in_memory_scratchpad",
         "storage.zero_fragmentation_preallocator",
         "core.green_wattage_capper",
+        "pipeline.mega_duration_architect",
     ]
 
     for mod_name in modules_to_test:

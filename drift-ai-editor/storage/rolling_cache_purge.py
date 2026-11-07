@@ -103,3 +103,4 @@ class RollingCachePurgeManager:
             total_bytes_after=total_size,
             is_quota_respected=(total_size <= max_bytes_quota)
         )
+

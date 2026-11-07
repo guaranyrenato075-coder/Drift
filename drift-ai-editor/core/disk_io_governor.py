@@ -58,3 +58,4 @@ class DiskIoGovernor:
     @classmethod
     def is_active(cls) -> bool:
         return cls._is_active
+

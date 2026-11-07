@@ -60,3 +60,4 @@ class ThermalDutyCyclePacer:
     def execute_cooling_if_needed(self, decision: ThermalPacingDecision) -> None:
         if decision.should_pause_for_cooling and decision.cooling_pause_sec > 0:
             time.sleep(decision.cooling_pause_sec)
+

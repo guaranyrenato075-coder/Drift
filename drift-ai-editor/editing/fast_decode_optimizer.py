@@ -68,3 +68,4 @@ class FastDecodeOptimizer:
         cmd.extend(["-c:v", "libx264", "-preset", "ultrafast" if is_preview else "veryfast", "-c:a", "copy", "-y", output_file])
         
         return cmd
+

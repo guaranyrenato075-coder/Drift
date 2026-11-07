@@ -64,3 +64,4 @@ class SleepInhibitGovernor:
     @classmethod
     def is_inhibited(cls) -> bool:
         return cls._active_counter > 0
+

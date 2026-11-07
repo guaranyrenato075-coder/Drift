@@ -88,3 +88,4 @@ class EcoGovernor:
             return bool(res)
         except Exception:
             return False
+

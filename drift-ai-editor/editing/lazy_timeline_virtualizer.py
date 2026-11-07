@@ -77,3 +77,4 @@ class LazyTimelineVirtualizer:
             hibernating_handles_count=hibernating_count,
             handles=dict(self.handles)
         )
+

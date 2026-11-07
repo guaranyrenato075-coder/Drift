@@ -88,3 +88,4 @@ class LosslessStreamCopyDetector:
                 estimated_speedup_factor=1.0,
                 bypass_reason="Dimensões ou codec requerem adaptação para o padrão do projeto."
             )
+

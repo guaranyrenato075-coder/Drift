@@ -144,3 +144,4 @@ class MotionInfographicsGenerator:
             items=all_items,
             style_theme=style
         )
+

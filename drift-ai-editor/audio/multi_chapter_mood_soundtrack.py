@@ -116,3 +116,4 @@ class MultiChapterMoodSoundtrackOrchestrator:
             ffmpeg_filter_complex=filter_complex,
             ducking_profile=ducking_profile
         )
+

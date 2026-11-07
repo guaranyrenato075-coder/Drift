@@ -83,3 +83,4 @@ class CompactMetadataIndexer:
 
     def get_compressed_size_bytes(self) -> int:
         return len(self._compressed_payload)
+

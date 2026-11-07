@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 import os
 import math
+import uuid
 from models.scene_plan import ProjectPlan, Scene
 from core.hardware_telemetry import HardwareTelemetryProfiler
 
@@ -126,4 +127,29 @@ class ChunkedParallelRenderer:
             ffmpeg_concat_manifest="\n".join(concat_lines),
             final_output_path=final_out
         )
+
+    @classmethod
+    def create_chapter_render_plan(
+        cls,
+        scenes: List[Scene],
+        chapter_title: str,
+        output_master_file: str,
+        target_chunk_sec: float = 18.0
+    ) -> ParallelRenderPlan:
+        """
+        Creates an optimized parallel chunk render plan specifically for an isolated mega-doc chapter.
+        """
+        dummy_plan = ProjectPlan(
+            project_id=f"chap_{uuid.uuid4().hex[:6]}" if "uuid" in globals() else "chap_render",
+            title=chapter_title,
+            scenes=scenes
+        )
+        plan_res = cls.create_parallel_plan(
+            plan=dummy_plan,
+            target_chunk_sec=target_chunk_sec,
+            output_dir=os.path.dirname(output_master_file) or "d:/CUTWIREDRIFT/renders"
+        )
+        plan_res.final_output_path = output_master_file
+        return plan_res
+
 

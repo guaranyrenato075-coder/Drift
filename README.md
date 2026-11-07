@@ -25,6 +25,28 @@
   <a href="https://cutwire.org/drift"><strong>cutwire.org/drift</strong></a>
 </p>
 
+---
+
+<div align="center">
+
+### 🚀 **NOVA VERSÃO COM IA NATIVA & VÍDEOS DE LONGA DURAÇÃO (>20 A 120 MINUTOS)**
+
+[![Baixar Código ZIP](https://img.shields.io/badge/📥_Baixar_Direto-Código_Completo_ZIP-2563eb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/guaranyrenato075-coder/Drift/archive/refs/heads/main.zip)
+[![Releases do Projeto](https://img.shields.io/badge/🏷️_Releases-Versões_Oficiais-10b981?style=for-the-badge&logo=git&logoColor=white)](https://github.com/guaranyrenato075-coder/Drift/releases)
+
+**Quer rodar no seu computador agora? É só baixar e dar duplo clique!**
+1. Clique no botão azul acima ou em **`Code -> Download ZIP`** no topo da página.
+2. Extraia a pasta no seu computador.
+3. Dê duplo clique em **`Iniciar_Interface_Web.bat`** (Interface Web com IA e Produção de Documentários) ou **`Abrir_Drift.bat`** (Editor Desktop)!
+
+#### 🎬 O que há de novo nesta edição:
+- **Suporte Nativo a Vídeos >20 Minutos (30, 45, 60+ min):** Arquitetura hierárquica por capítulos (`MegaDurationArchitect`), gerando documentários completos com 4 a 8 capítulos, curvas de retenção psicológica e costura final instantânea via stream copy (`-c copy`) com **0% de perda**.
+- **Ultra-Hardware Efficiency:** Desenvolvido sob medida para não travar o computador. Roda liso em CPUs multi-core (Xeon 24 threads) e GPUs modestas (GeForce G210), mantendo a RAM abaixo de 250 MB com limpeza automática de memória (`EmptyWorkingSet`).
+- **Geração de Roteiro e Mídia Automática:** Conexão com 26 provedores de acervo (NASA, Smithsonian, Met Museum, Pexels, Pixabay), B-Roll inteligente e legendas dinâmicas.
+
+---
+</div>
+
 <p align="center">
   Translations:
   <a href="README-i18n/README.ar.md">العربية</a> ·

@@ -133,3 +133,4 @@ class SmartKenBurnsPunchInEngine:
             )
             effects.append(eff)
         return effects
+

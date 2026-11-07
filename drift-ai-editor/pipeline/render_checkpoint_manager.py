@@ -148,3 +148,4 @@ class RenderCheckpointManager:
                 os.remove(state.checkpoint_file)
             except OSError:
                 pass
+

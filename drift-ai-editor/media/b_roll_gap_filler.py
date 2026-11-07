@@ -99,3 +99,4 @@ class BRollGapFiller:
             insertions=all_insertions,
             coverage_ratio=coverage
         )
+

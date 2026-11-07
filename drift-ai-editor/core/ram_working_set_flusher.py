@@ -81,3 +81,4 @@ class RamWorkingSetFlusher:
             memory_reclaimed_mb=reclaimed,
             is_windows_api_applied=applied_win_api
         )
+

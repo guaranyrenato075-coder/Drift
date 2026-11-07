@@ -56,6 +56,7 @@ from audio.smart_silence_breath_stripper import SmartSilenceBreathStripper
 from editing.motion_infographics_generator import MotionInfographicsGenerator
 from media.b_roll_gap_filler import BRollGapFiller
 from core.eco_governor import EcoGovernor
+from pipeline.mega_duration_architect import MegaDurationArchitect, MegaProductionPlan, MegaChapter
 from core.ram_working_set_flusher import RamWorkingSetFlusher
 from editing.draft_proxy_engine import DraftProxyEngine
 from editing.lossless_stream_copy_detector import LosslessStreamCopyDetector
@@ -1241,6 +1242,16 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
+        elif self.path.startswith("/api/mega/plan"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            topic = params.get("topic", ["Ciência e Cosmos"])[0]
+            try:
+                minutes = float(params.get("minutes", ["30.0"])[0])
+            except ValueError:
+                minutes = 30.0
+            mega_plan = MegaDurationArchitect.plan_mega_production(topic=topic, target_minutes=minutes)
+            return self.send_json({"ok": True, "plan": mega_plan.to_dict()})
         else:
             self.send_response(404)
             self.end_headers()
@@ -1802,13 +1813,35 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
 
         elif self.path == "/api/generate_script":
             topic = data.get("topic", "Estoicismo")
-            cache_k = f"script_gen:{topic.lower().strip()}"
+            duration_type = data.get("duration_type", "shorts")
+            duration_minutes = data.get("duration_minutes")
+            cache_k = f"script_gen:{topic.lower().strip()}:{duration_type}:{duration_minutes}"
             hit = GLOBAL_CACHE.get(cache_k)
             if hit:
                 return self.send_json({"ok": True, "script": hit, "cached": True})
-            script = ScriptGenerator.generate(topic)
+            script = ScriptGenerator.generate(topic, duration_type=duration_type, duration_minutes=duration_minutes)
             GLOBAL_CACHE.set(cache_k, script, ttl_sec=600)
             return self.send_json({"ok": True, "script": script, "cached": False})
+
+        elif self.path == "/api/mega/plan":
+            topic = data.get("topic", "Ciência e Universo")
+            try:
+                minutes = float(data.get("minutes", 30.0))
+            except (ValueError, TypeError):
+                minutes = 30.0
+            mega_plan = MegaDurationArchitect.plan_mega_production(topic=topic, target_minutes=minutes)
+            return self.send_json({"ok": True, "plan": mega_plan.to_dict()})
+
+        elif self.path == "/api/mega/render_chapter":
+            topic = data.get("topic", "Ciência e Universo")
+            try:
+                minutes = float(data.get("minutes", 30.0))
+            except (ValueError, TypeError):
+                minutes = 30.0
+            chapter_index = int(data.get("chapter_index", 1))
+            mega_plan = MegaDurationArchitect.plan_mega_production(topic=topic, target_minutes=minutes)
+            result = MegaDurationArchitect.simulate_chapter_render_lifecycle(mega_plan, chapter_index)
+            return self.send_json({"ok": True, "chapter_render": result})
 
         elif self.path == "/api/stream_copilot":
             self.send_response(200)
