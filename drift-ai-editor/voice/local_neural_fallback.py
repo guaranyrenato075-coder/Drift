@@ -60,6 +60,40 @@ class LocalNeuralVoiceFallback:
             base_pitch_hz=210.0,
             speech_rate_wpm=145,
             description="Entonação suave, clara e envolvente para histórias e lições."
+        ),
+        # Perfis em Italiano (it-IT)
+        "it_documentary_deep": VoiceToneProfile(
+            profile_id="it_documentary_deep",
+            display_name="Voz Documentário Italiano (it-IT)",
+            gender="male",
+            base_pitch_hz=115.0,
+            speech_rate_wpm=132,
+            description="Timbro profondo e solenne in italiano per documentari storici e scientifici."
+        ),
+        "it_expressive_female": VoiceToneProfile(
+            profile_id="it_expressive_female",
+            display_name="Voz Feminina Expressiva Italiana (it-IT)",
+            gender="female",
+            base_pitch_hz=215.0,
+            speech_rate_wpm=142,
+            description="Voce femminile chiara ed elegante per saggi visivi e narrazioni."
+        ),
+        # Perfis em Alemão (de-DE)
+        "de_documentary_deep": VoiceToneProfile(
+            profile_id="de_documentary_deep",
+            display_name="Voz Documentário Alemão (de-DE)",
+            gender="male",
+            base_pitch_hz=108.0,
+            speech_rate_wpm=126,
+            description="Tiefe, präzise und autoritative deutsche Stimme für Dokumentationen."
+        ),
+        "de_narrator_dynamic": VoiceToneProfile(
+            profile_id="de_narrator_dynamic",
+            display_name="Narrador Dinâmico Alemão (de-DE)",
+            gender="male",
+            base_pitch_hz=130.0,
+            speech_rate_wpm=144,
+            description="Dynamischer, energischer deutscher Sprecher für schnelle Schnitte."
         )
     }
 
@@ -147,6 +181,21 @@ class LocalNeuralVoiceFallback:
         )
 
     @classmethod
+    def resolve_profile_for_scene(cls, scene: Scene) -> str:
+        """
+        Determines the most accurate voice profile based on scene language or explicit voice_id.
+        """
+        if scene.voice_id and scene.voice_id in cls.VOICE_PROFILES:
+            return scene.voice_id
+        
+        lang = (scene.language or "pt").lower()
+        if lang in ("it", "ita", "italian"):
+            return "it_documentary_deep"
+        elif lang in ("de", "deu", "german", "deutsch"):
+            return "de_documentary_deep"
+        return "pt_br_documentary_deep"
+
+    @classmethod
     def process_scene_fallback(cls, scene: Scene, output_folder: str = "d:/CUTWIREDRIFT/audio") -> Scene:
         """
         Updates a scene with local offline generated audio.
@@ -156,8 +205,9 @@ class LocalNeuralVoiceFallback:
             scene.duration = max(scene.duration, 2.0)
             return scene
 
-        wav_path = os.path.join(output_folder, f"scene_{scene.order:03d}_voice.wav")
-        res = cls.synthesize_speech(scene.narration_text, wav_path)
+        profile_id = cls.resolve_profile_for_scene(scene)
+        wav_path = os.path.join(output_folder, f"scene_{scene.order:03d}_{scene.language or 'pt'}_voice.wav")
+        res = cls.synthesize_speech(scene.narration_text, wav_path, profile_id=profile_id)
 
         scene.audio_path = res.audio_path
         scene.duration = res.duration_sec

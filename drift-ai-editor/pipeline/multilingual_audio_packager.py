@@ -34,9 +34,12 @@ class MultilingualAudioPackager:
         "pt": ("por", "Português"),
         "en": ("eng", "English"),
         "es": ("spa", "Español"),
+        "it": ("ita", "Italiano"),
         "de": ("deu", "Deutsch"),
         "fr": ("fra", "Français"),
-        "ja": ("jpn", "Japanese")
+        "ja": ("jpn", "Japanese"),
+        "zh": ("zho", "Mandarin"),
+        "ru": ("rus", "Russian")
     }
 
     @classmethod

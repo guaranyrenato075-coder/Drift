@@ -1815,11 +1815,12 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             topic = data.get("topic", "Estoicismo")
             duration_type = data.get("duration_type", "shorts")
             duration_minutes = data.get("duration_minutes")
-            cache_k = f"script_gen:{topic.lower().strip()}:{duration_type}:{duration_minutes}"
+            language = data.get("language", "pt")
+            cache_k = f"script_gen:{topic.lower().strip()}:{duration_type}:{duration_minutes}:{language}"
             hit = GLOBAL_CACHE.get(cache_k)
             if hit:
                 return self.send_json({"ok": True, "script": hit, "cached": True})
-            script = ScriptGenerator.generate(topic, duration_type=duration_type, duration_minutes=duration_minutes)
+            script = ScriptGenerator.generate(topic, duration_type=duration_type, duration_minutes=duration_minutes, language=language)
             GLOBAL_CACHE.set(cache_k, script, ttl_sec=600)
             return self.send_json({"ok": True, "script": script, "cached": False})
 
