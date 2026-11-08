@@ -31,6 +31,8 @@
 
 ### 🚀 **NOVA VERSÃO COM IA NATIVA & VÍDEOS DE LONGA DURAÇÃO (>20 A 120 MINUTOS)**
 
+> 💡 *"Criador de software & automações com IA. Construindo sistemas rápidos, robustos e eficientes."*
+
 [![Baixar Código ZIP](https://img.shields.io/badge/📥_Baixar_Direto-Código_Completo_ZIP-2563eb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/guaranyrenato075-coder/Drift/archive/refs/tags/v1.0.0-ai.zip)
 [![Release Oficial v1.0.0-ai](https://img.shields.io/badge/🏷️_Release_Oficial-v1.0.0--ai-10b981?style=for-the-badge&logo=git&logoColor=white)](https://github.com/guaranyrenato075-coder/Drift/releases/tag/v1.0.0-ai)
 
