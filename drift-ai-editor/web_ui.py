@@ -1152,6 +1152,9 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "aligned_transitions": mix.aligned_transitions,
                 "ffmpeg_filter": mix.ffmpeg_volume_filter
             })
+        elif self.path.startswith("/api/policies/sync"):
+            res = self.policy_manager.sync_policies_from_remote()
+            return self.send_json(res)
         elif self.path.startswith("/api/policies"):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

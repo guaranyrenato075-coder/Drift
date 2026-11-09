@@ -1,6 +1,7 @@
 {
-  "version": "2026.10.1",
-  "last_updated": "2026-10-30T22:00:00Z",
+  "version": "2026.11.0",
+  "last_updated": "2026-11-09T14:40:00Z",
+  "update_interval_hours": 24,
   "platforms": {
     "youtube": {
       "name": "YouTube",
@@ -11,16 +12,25 @@
         "restricted_topics": [
           "armas caseiras", "drogas ilícitas", "terrorismo", "discurso de ódio",
           "desinformação médica grave", "fraude financeira", "hackeamento de contas"
-        ]
+        ],
+        "reused_content_policy": "Obrigatoriedade de agregação substancial de valor: narração autoral, edição ritmada e B-Roll dinâmico."
+      },
+      "copyright": {
+        "content_id_protection": "strict",
+        "audio_commercial_safe": true,
+        "mandatory_attribution_block": true,
+        "max_uncredited_third_party_seconds": 0.0,
+        "rule_description": "Todas as 31 fontes devem possuir licenças abertas comprováveis (Public Domain, CC0, CC-BY, Royalty-Free) e bloco de créditos na descrição."
       },
       "ai_disclosure": {
         "required": true,
-        "rule_description": "Conteúdo sintético ou alterado de forma realista deve conter tag obrigatória 'Criado com IA'."
+        "rule_description": "Conteúdo sintético ou alterado de forma realista deve conter tag obrigatória 'Conteúdo Alterado ou Sintético' (AI Disclosure)."
       },
       "metadata": {
         "max_title_chars": 100,
         "recommended_title_chars": 65,
-        "max_tags_chars": 500
+        "max_tags_chars": 500,
+        "clickbait_extreme_penalty": true
       },
       "audio": {
         "target_lufs": -14.0,
@@ -32,13 +42,20 @@
       "community_guidelines": {
         "shadowban_risk_words": [
           "compre seguidores", "ganhe dinheiro rapido", "esquema de piramide",
-          "apostas garantidas", "hackear", "remédio milagroso", "fraude"
+          "apostas garantidas", "hackear", "remédio milagroso", "fraude",
+          "renda passiva facil", "compre aqui link"
         ],
         "engagement_bait_penalized": true
       },
+      "copyright": {
+        "commercial_music_strict": true,
+        "original_audio_boost": true,
+        "rule_description": "Proibido usar trilhas sonoras comerciais protegidas sem licença de uso corporativo/monetizado. Use áudios originais sintetizados ou royalty-free."
+      },
       "ai_disclosure": {
         "required": true,
-        "rule_description": "Selo 'Gerado por IA' ativado compulsoriamente para vozes sintéticas ou deepfakes."
+        "c2pa_metadata_supported": true,
+        "rule_description": "Selo 'Gerado por IA' deve ser ativado nas configurações do post para evitar supressão algorítmica."
       },
       "safe_zones": {
         "top_margin_px": 220,
@@ -47,20 +64,25 @@
         "left_margin_px": 50
       },
       "audio": {
-        "target_lufs": -14.0,
-        "commercial_music_strict": true
+        "target_lufs": -14.0
       }
     },
     "instagram": {
       "name": "Instagram / Meta Reels",
       "algorithm_guidelines": {
         "prohibited_watermarks": [
-          "tiktok", "bytedance", "kuaishou", "marca d'água concorrente"
+          "tiktok", "bytedance", "kuaishou", "kwai", "capcut", "marca d'água concorrente"
         ],
-        "watermark_penalty_description": "O algoritmo do Instagram Reels reduz o alcance de vídeos que contenham marcas d'água do TikTok.",
+        "watermark_penalty_description": "O algoritmo do Instagram Reels reduz em até 90% o alcance orgânico de vídeos que contenham marcas d'água de outros apps.",
         "engagement_bait_words": [
-          "comente 'EU QUERO'", "siga para não ter azar", "compartilhe com 10 amigos"
+          "comente 'EU QUERO'", "siga para não ter azar", "compartilhe com 10 amigos",
+          "salve para não perder"
         ]
+      },
+      "copyright": {
+        "meta_rights_manager": "strict",
+        "royalty_free_only": true,
+        "rule_description": "O Meta Rights Manager bloqueia silenciosamente Reels com trechos musicais ou filmagens comerciais não licenciadas."
       },
       "ai_disclosure": {
         "required": true,
@@ -77,4 +99,3 @@
     }
   }
 }
-
