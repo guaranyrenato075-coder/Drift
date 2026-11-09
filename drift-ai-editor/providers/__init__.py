@@ -48,6 +48,9 @@ from .picjumbo import PicjumboProvider
 from .isorepublic import IsoRepublicProvider
 from .gratisography import GratisographyProvider
 from .yale import YaleProvider
+from .reshot import ReshotProvider
+from .lifeofpix import LifeOfPixProvider
+from .flickr_commons import FlickrCommonsProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -99,5 +102,8 @@ __all__ = [
     "PicjumboProvider",
     "IsoRepublicProvider",
     "GratisographyProvider",
-    "YaleProvider"
+    "YaleProvider",
+    "ReshotProvider",
+    "LifeOfPixProvider",
+    "FlickrCommonsProvider"
 ]

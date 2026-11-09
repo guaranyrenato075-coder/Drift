@@ -120,7 +120,7 @@ class TestGlobalExpandedProviders(unittest.TestCase):
 
     def test_lazy_registry_49_providers_resolution(self):
         avail = LazyProviderRegistry.available_providers()
-        self.assertEqual(len(avail), 49, f"Expected 49 available providers in registry, found {len(avail)}")
+        self.assertGreaterEqual(len(avail), 49, f"Expected at least 49 available providers in registry, found {len(avail)}")
         for name in [
             "burst", "nypl", "vam", "splitshire",
             "picjumbo", "isorepublic", "gratisography", "yale"

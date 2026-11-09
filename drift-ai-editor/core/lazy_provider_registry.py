@@ -58,6 +58,9 @@ PROVIDER_CATALOG: Dict[str, tuple[str, str]] = {
     "isorepublic": ("providers.isorepublic", "IsoRepublicProvider"),
     "gratisography": ("providers.gratisography", "GratisographyProvider"),
     "yale": ("providers.yale", "YaleProvider"),
+    "reshot": ("providers.reshot", "ReshotProvider"),
+    "lifeofpix": ("providers.lifeofpix", "LifeOfPixProvider"),
+    "flickr_commons": ("providers.flickr_commons", "FlickrCommonsProvider"),
 }
 
 class LazyProviderRegistry:

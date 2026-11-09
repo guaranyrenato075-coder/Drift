@@ -44,7 +44,7 @@
 #### 🎬 O que há de novo nesta edição:
 - **Suporte Nativo a Vídeos >20 Minutos (30, 45, 60+ min):** Arquitetura hierárquica por capítulos (`MegaDurationArchitect`), gerando documentários completos com 4 a 8 capítulos, curvas de retenção psicológica e costura final instantânea via stream copy (`-c copy`) com **0% de perda**.
 - **Ultra-Hardware Efficiency:** Desenvolvido sob medida para não travar o computador. Roda liso em CPUs multi-core (Xeon 24 threads) e GPUs modestas (GeForce G210), mantendo a RAM abaixo de 250 MB com limpeza automática de memória (`EmptyWorkingSet`).
-- **Geração de Roteiro e Mídia Automática:** Conexão com 49 provedores de acervo mundiais (NASA, ESA, CERN, NARA, Getty Open, Prelinger, British Library, Burst by Shopify, NYPL, V&A Museum, SplitShire, Picjumbo, ISO Republic, Gratisography, Yale Art Gallery, Kaboompics, Mauritshuis, Videezy, Smithsonian, Paris Musées, Met Museum, Dareful 4K, NGA, DVIDS, Mazwai, Videvo, Pexels, Pixabay), B-Roll inteligente em 4K e legendas dinâmicas.
+- **Geração de Roteiro e Mídia Automática:** Conexão com 52 provedores de acervo mundiais (NASA, ESA, CERN, NARA, Reshot, Flickr Commons, Life of Pix, Getty Open, Prelinger, British Library, Burst by Shopify, NYPL, V&A Museum, SplitShire, Picjumbo, ISO Republic, Gratisography, Yale Art Gallery, Kaboompics, Mauritshuis, Videezy, Smithsonian, Paris Musées, Met Museum, Dareful 4K, NGA, DVIDS, Mazwai, Videvo, Pexels, Pixabay), B-Roll inteligente em 4K e legendas dinâmicas.
 
 ---
 </div>
