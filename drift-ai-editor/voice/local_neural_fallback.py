@@ -185,7 +185,7 @@ class LocalNeuralVoiceFallback:
         """
         Determines the most accurate voice profile based on scene language or explicit voice_id.
         """
-        if scene.voice_id and scene.voice_id in cls.VOICE_PROFILES:
+        if scene.voice_id and scene.voice_id != "default" and scene.voice_id in cls.VOICE_PROFILES:
             return scene.voice_id
         
         lang = (scene.language or "pt").lower()
