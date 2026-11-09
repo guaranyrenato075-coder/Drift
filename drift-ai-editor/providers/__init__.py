@@ -40,6 +40,14 @@ from .british_library import BritishLibraryProvider
 from .kaboompics import KaboompicsProvider
 from .mauritshuis import MauritshuisProvider
 from .videezy import VideezyProvider
+from .burst import BurstProvider
+from .nypl import NyplProvider
+from .vam import VamProvider
+from .splitshire import SplitShireProvider
+from .picjumbo import PicjumboProvider
+from .isorepublic import IsoRepublicProvider
+from .gratisography import GratisographyProvider
+from .yale import YaleProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -83,5 +91,13 @@ __all__ = [
     "BritishLibraryProvider",
     "KaboompicsProvider",
     "MauritshuisProvider",
-    "VideezyProvider"
+    "VideezyProvider",
+    "BurstProvider",
+    "NyplProvider",
+    "VamProvider",
+    "SplitShireProvider",
+    "PicjumboProvider",
+    "IsoRepublicProvider",
+    "GratisographyProvider",
+    "YaleProvider"
 ]

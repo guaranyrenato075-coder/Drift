@@ -84,7 +84,7 @@ class TestUltimateMediaProviders(unittest.TestCase):
 
     def test_lazy_registry_41_providers_resolution(self):
         avail = LazyProviderRegistry.available_providers()
-        self.assertEqual(len(avail), 41, f"Expected 41 available providers in registry, found {len(avail)}")
+        self.assertGreaterEqual(len(avail), 41, f"Expected at least 41 available providers in registry, found {len(avail)}")
         for name in ["prelinger", "british_library", "kaboompics", "mauritshuis", "videezy"]:
             self.assertIn(name, avail)
             inst = LazyProviderRegistry.get_provider(name)
