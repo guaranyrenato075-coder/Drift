@@ -30,6 +30,11 @@ from .esa import EsaProvider
 from .dvids import DvidsProvider
 from .cern import CernProvider
 from .videvo import VidevoProvider
+from .nara import NaraProvider
+from .getty_open import GettyOpenProvider
+from .paris_musees import ParisMuseesProvider
+from .dareful import DarefulProvider
+from .nga import NgaProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -63,5 +68,10 @@ __all__ = [
     "EsaProvider",
     "DvidsProvider",
     "CernProvider",
-    "VidevoProvider"
+    "VidevoProvider",
+    "NaraProvider",
+    "GettyOpenProvider",
+    "ParisMuseesProvider",
+    "DarefulProvider",
+    "NgaProvider"
 ]
