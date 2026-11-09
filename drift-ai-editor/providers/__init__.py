@@ -64,6 +64,11 @@ from .skitterphoto import SkitterphotoProvider
 from .foca_stock import FocaStockProvider
 from .stockvault import StockvaultProvider
 from .trove import TroveProvider
+from .artvee import ArtveeProvider
+from .magdeleine import MagdeleineProvider
+from .wp_photos import WpPhotosProvider
+from .goodfreephotos import GoodFreePhotosProvider
+from .jay_mantri import JayMantriProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -131,5 +136,10 @@ __all__ = [
     "SkitterphotoProvider",
     "FocaStockProvider",
     "StockvaultProvider",
-    "TroveProvider"
+    "TroveProvider",
+    "ArtveeProvider",
+    "MagdeleineProvider",
+    "WpPhotosProvider",
+    "GoodFreePhotosProvider",
+    "JayMantriProvider"
 ]

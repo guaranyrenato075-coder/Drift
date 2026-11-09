@@ -220,6 +220,11 @@ def audit_system():
         "providers.foca_stock",
         "providers.stockvault",
         "providers.trove",
+        "providers.artvee",
+        "providers.magdeleine",
+        "providers.wp_photos",
+        "providers.goodfreephotos",
+        "providers.jay_mantri",
     ]
 
     for mod_name in modules_to_test:
@@ -262,7 +267,7 @@ def audit_system():
     # -------------------------------------------------------------
     # 3. VERIFICAÇÃO DE PROVEDORES DE MÍDIA
     # -------------------------------------------------------------
-    print("\n[3/5] Auditando conformidade dos 65 provedores de mídia...")
+    print("\n[3/5] Auditando conformidade dos 70 provedores de mídia...")
     from providers import (
         PexelsProvider,
         PixabayProvider,
@@ -329,6 +334,11 @@ def audit_system():
         FocaStockProvider,
         StockvaultProvider,
         TroveProvider,
+        ArtveeProvider,
+        MagdeleineProvider,
+        WpPhotosProvider,
+        GoodFreePhotosProvider,
+        JayMantriProvider,
         BaseMediaProvider
     )
     providers = [
@@ -396,7 +406,12 @@ def audit_system():
         SkitterphotoProvider(),
         FocaStockProvider(),
         StockvaultProvider(),
-        TroveProvider()
+        TroveProvider(),
+        ArtveeProvider(),
+        MagdeleineProvider(),
+        WpPhotosProvider(),
+        GoodFreePhotosProvider(),
+        JayMantriProvider()
     ]
     for p in providers:
         if not isinstance(p, BaseMediaProvider):

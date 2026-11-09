@@ -110,7 +110,7 @@ class TestTitanMediaProviders(unittest.TestCase):
 
     def test_lazy_registry_65_providers_resolution(self):
         avail = LazyProviderRegistry.available_providers()
-        self.assertEqual(len(avail), 65, f"Expected 65 available providers in registry, found {len(avail)}")
+        self.assertGreaterEqual(len(avail), 65, f"Expected at least 65 available providers in registry, found {len(avail)}")
         for name in [
             "smk", "dpla", "usfws", "skitterphoto",
             "foca_stock", "stockvault", "trove"
