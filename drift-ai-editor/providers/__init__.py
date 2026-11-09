@@ -57,6 +57,13 @@ from .walters_art import WaltersArtProvider
 from .cdc_phil import CdcPhilProvider
 from .old_book_illustrations import OldBookIllustrationsProvider
 from .morguefile import MorguefileProvider
+from .smk import SmkProvider
+from .dpla import DplaProvider
+from .usfws import UsfwsProvider
+from .skitterphoto import SkitterphotoProvider
+from .foca_stock import FocaStockProvider
+from .stockvault import StockvaultProvider
+from .trove import TroveProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -117,5 +124,12 @@ __all__ = [
     "WaltersArtProvider",
     "CdcPhilProvider",
     "OldBookIllustrationsProvider",
-    "MorguefileProvider"
+    "MorguefileProvider",
+    "SmkProvider",
+    "DplaProvider",
+    "UsfwsProvider",
+    "SkitterphotoProvider",
+    "FocaStockProvider",
+    "StockvaultProvider",
+    "TroveProvider"
 ]
