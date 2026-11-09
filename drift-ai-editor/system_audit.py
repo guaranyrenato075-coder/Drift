@@ -191,6 +191,11 @@ def audit_system():
         "providers.paris_musees",
         "providers.dareful",
         "providers.nga",
+        "providers.prelinger",
+        "providers.british_library",
+        "providers.kaboompics",
+        "providers.mauritshuis",
+        "providers.videezy",
     ]
 
     for mod_name in modules_to_test:
@@ -233,7 +238,7 @@ def audit_system():
     # -------------------------------------------------------------
     # 3. VERIFICAÇÃO DE PROVEDORES DE MÍDIA
     # -------------------------------------------------------------
-    print("\n[3/5] Auditando conformidade dos 36 provedores de mídia...")
+    print("\n[3/5] Auditando conformidade dos 41 provedores de mídia...")
     from providers import (
         PexelsProvider,
         PixabayProvider,
@@ -271,6 +276,11 @@ def audit_system():
         ParisMuseesProvider,
         DarefulProvider,
         NgaProvider,
+        PrelingerProvider,
+        BritishLibraryProvider,
+        KaboompicsProvider,
+        MauritshuisProvider,
+        VideezyProvider,
         BaseMediaProvider
     )
     providers = [
@@ -309,7 +319,12 @@ def audit_system():
         GettyOpenProvider(),
         ParisMuseesProvider(),
         DarefulProvider(),
-        NgaProvider()
+        NgaProvider(),
+        PrelingerProvider(),
+        BritishLibraryProvider(),
+        KaboompicsProvider(),
+        MauritshuisProvider(),
+        VideezyProvider()
     ]
     for p in providers:
         if not isinstance(p, BaseMediaProvider):

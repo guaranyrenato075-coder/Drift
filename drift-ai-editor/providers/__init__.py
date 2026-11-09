@@ -35,6 +35,11 @@ from .getty_open import GettyOpenProvider
 from .paris_musees import ParisMuseesProvider
 from .dareful import DarefulProvider
 from .nga import NgaProvider
+from .prelinger import PrelingerProvider
+from .british_library import BritishLibraryProvider
+from .kaboompics import KaboompicsProvider
+from .mauritshuis import MauritshuisProvider
+from .videezy import VideezyProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -73,5 +78,10 @@ __all__ = [
     "GettyOpenProvider",
     "ParisMuseesProvider",
     "DarefulProvider",
-    "NgaProvider"
+    "NgaProvider",
+    "PrelingerProvider",
+    "BritishLibraryProvider",
+    "KaboompicsProvider",
+    "MauritshuisProvider",
+    "VideezyProvider"
 ]
