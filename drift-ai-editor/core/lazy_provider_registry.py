@@ -35,6 +35,11 @@ PROVIDER_CATALOG: Dict[str, tuple[str, str]] = {
     "ccmixter": ("providers.ccmixter", "CcMixterProvider"),
     "incompetech": ("providers.incompetech", "IncompetechProvider"),
     "rawpixel": ("providers.rawpixel", "RawpixelProvider"),
+    "mazwai": ("providers.mazwai", "MazwaiProvider"),
+    "esa": ("providers.esa", "EsaProvider"),
+    "dvids": ("providers.dvids", "DvidsProvider"),
+    "cern": ("providers.cern", "CernProvider"),
+    "videvo": ("providers.videvo", "VidevoProvider"),
 }
 
 class LazyProviderRegistry:

@@ -181,6 +181,11 @@ def audit_system():
         "storage.zero_fragmentation_preallocator",
         "core.green_wattage_capper",
         "pipeline.mega_duration_architect",
+        "providers.mazwai",
+        "providers.esa",
+        "providers.dvids",
+        "providers.cern",
+        "providers.videvo",
     ]
 
     for mod_name in modules_to_test:
@@ -223,7 +228,7 @@ def audit_system():
     # -------------------------------------------------------------
     # 3. VERIFICAÇÃO DE PROVEDORES DE MÍDIA
     # -------------------------------------------------------------
-    print("\n[3/5] Auditando conformidade dos 26 provedores de mídia...")
+    print("\n[3/5] Auditando conformidade dos 31 provedores de mídia...")
     from providers import (
         PexelsProvider,
         PixabayProvider,
@@ -251,6 +256,11 @@ def audit_system():
         CcMixterProvider,
         IncompetechProvider,
         RawpixelProvider,
+        MazwaiProvider,
+        EsaProvider,
+        DvidsProvider,
+        CernProvider,
+        VidevoProvider,
         BaseMediaProvider
     )
     providers = [
@@ -279,7 +289,12 @@ def audit_system():
         JamendoMusicProvider(),
         CcMixterProvider(),
         IncompetechProvider(),
-        RawpixelProvider()
+        RawpixelProvider(),
+        MazwaiProvider(),
+        EsaProvider(),
+        DvidsProvider(),
+        CernProvider(),
+        VidevoProvider()
     ]
     for p in providers:
         if not isinstance(p, BaseMediaProvider):

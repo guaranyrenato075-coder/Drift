@@ -25,6 +25,11 @@ from .jamendo import JamendoMusicProvider
 from .ccmixter import CcMixterProvider
 from .incompetech import IncompetechProvider
 from .rawpixel import RawpixelProvider
+from .mazwai import MazwaiProvider
+from .esa import EsaProvider
+from .dvids import DvidsProvider
+from .cern import CernProvider
+from .videvo import VidevoProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -53,5 +58,10 @@ __all__ = [
     "JamendoMusicProvider",
     "CcMixterProvider",
     "IncompetechProvider",
-    "RawpixelProvider"
+    "RawpixelProvider",
+    "MazwaiProvider",
+    "EsaProvider",
+    "DvidsProvider",
+    "CernProvider",
+    "VidevoProvider"
 ]
