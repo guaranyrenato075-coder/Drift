@@ -51,6 +51,12 @@ from .yale import YaleProvider
 from .reshot import ReshotProvider
 from .lifeofpix import LifeOfPixProvider
 from .flickr_commons import FlickrCommonsProvider
+from .nps import NpsProvider
+from .foodiesfeed import FoodiesfeedProvider
+from .walters_art import WaltersArtProvider
+from .cdc_phil import CdcPhilProvider
+from .old_book_illustrations import OldBookIllustrationsProvider
+from .morguefile import MorguefileProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -105,5 +111,11 @@ __all__ = [
     "YaleProvider",
     "ReshotProvider",
     "LifeOfPixProvider",
-    "FlickrCommonsProvider"
+    "FlickrCommonsProvider",
+    "NpsProvider",
+    "FoodiesfeedProvider",
+    "WaltersArtProvider",
+    "CdcPhilProvider",
+    "OldBookIllustrationsProvider",
+    "MorguefileProvider"
 ]

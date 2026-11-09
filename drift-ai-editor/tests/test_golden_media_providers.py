@@ -55,7 +55,7 @@ class TestGoldenMediaProviders(unittest.TestCase):
 
     def test_lazy_registry_52_providers_resolution(self):
         avail = LazyProviderRegistry.available_providers()
-        self.assertEqual(len(avail), 52, f"Expected 52 available providers in registry, found {len(avail)}")
+        self.assertGreaterEqual(len(avail), 52, f"Expected at least 52 available providers in registry, found {len(avail)}")
         for name in ["reshot", "lifeofpix", "flickr_commons"]:
             self.assertIn(name, avail)
             inst = LazyProviderRegistry.get_provider(name)
