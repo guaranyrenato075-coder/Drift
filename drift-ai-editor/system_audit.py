@@ -256,6 +256,10 @@ def audit_system():
         "analysis.retention_heatmap_auditor",
         "editing.smart_color_matcher",
         "pipeline.multi_export_orchestrator",
+        "pipeline.story_hook_split_tester",
+        "audio.beat_drop_scene_sync",
+        "voice.emotion_inflection_director",
+        "editing.chapter_card_generator",
     ]
 
     for mod_name in modules_to_test:

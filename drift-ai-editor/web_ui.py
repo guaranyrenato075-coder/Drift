@@ -74,6 +74,10 @@ from audio.dynamic_ducking_punch_director import DynamicZoomPunchAudioDuckingDir
 from analysis.retention_heatmap_auditor import VisualRetentionHeatmapAuditor
 from editing.smart_color_matcher import SmartLutCinematicColorMatcher
 from pipeline.multi_export_orchestrator import SocialMediaMultiExportPresets
+from pipeline.story_hook_split_tester import AIStoryHookABSplitTester
+from audio.beat_drop_scene_sync import SoundtrackBeatDropSceneSync
+from voice.emotion_inflection_director import AIVoiceEmotionInflectionDirector
+from editing.chapter_card_generator import AutoVideoChapterCardGenerator
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -308,6 +312,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0; font-weight:600;" onclick="abrirRetentionModal()">📊 Curva de Retenção & Heatmap</button>
       <button class="btn btn-secondary" style="border-color:#06b6d4; color:#a5f3fc; font-weight:600;" onclick="abrirColorMatcherModal()">🎨 Color Matcher de Acervos (5600K)</button>
       <button class="btn" style="background:#2563eb; color:#fff; font-weight:700;" onclick="abrirMultiExportModal()">📱 Multi-Export Simultâneo (1-Clique)</button>
+      <button class="btn btn-secondary" style="border-color:#d946ef; color:#f5d0fe; font-weight:600;" onclick="abrirHookTesterModal()">🎣 Testador A/B de Ganchos (5s)</button>
+      <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fde68a; font-weight:600;" onclick="abrirBeatSyncModal()">🎵 Sincronizador de Beat Musical</button>
+      <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ddd6fe; font-weight:600;" onclick="abrirVoiceEmotionModal()">🎭 Diretor de Emoção da Voz IA</button>
+      <button class="btn" style="background:#059669; color:#fff; font-weight:700;" onclick="abrirChapterCardsModal()">🎬 Cartelas de Capítulos HD</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -1956,6 +1964,207 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao exportar: ' + e.message);
       }
     }
+
+    // === TITAN STUDIO: HOOK A/B TESTER, BEAT DROP SYNC, VOICE EMOTIONS, CHAPTER CARDS ===
+    async function abrirHookTesterModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('hook-tester-modal');
+      const listEl = document.getElementById('hook-tester-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Formulando 3 variações psicológicas de gancho inicial...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/hooks/variations?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro ao gerar ganchos');
+
+        listEl.innerHTML = (data.variations || []).map(v => `
+          <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:14px; display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="color:#f5d0fe; font-size:0.95rem;">${v.title}</b>
+              <span style="background:#86198f; color:#fdf4ff; padding:2px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">Impacto: ${v.estimated_hook_power}/100</span>
+            </div>
+            <div style="background:#18181b; padding:10px; border-left:3px solid #d946ef; border-radius:4px; font-size:0.85rem; color:#fff;">
+              "${v.narration_text}"
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+              <span>🎭 <b>Emoção Alvo:</b> ${v.target_emotion}</span>
+              <button class="btn" style="background:#d946ef; color:#fff; font-size:0.78rem; font-weight:700;" onclick="aplicarGanchoAberto('${v.hook_id}')">⚡ Usar Este Gancho no Início</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharHookTesterModal() {
+      document.getElementById('hook-tester-modal').style.display = 'none';
+    }
+    async function aplicarGanchoAberto(hookId) {
+      if (!currentPlan) return;
+      showStatus('Aplicando gancho de abertura...', '#d946ef');
+      try {
+        const res = await fetch('/api/hooks/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, hook_id: hookId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus('Gancho aplicado com sucesso à Cena #1!', '#10b981');
+          alert('Gancho aplicado com sucesso!\n\nA Cena #1 foi reconfigurada para prender a atenção nos primeiros 5 segundos.');
+          fecharHookTesterModal();
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (e) {
+        alert('Erro ao aplicar gancho: ' + e.message);
+      }
+    }
+
+    async function abrirBeatSyncModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('beat-sync-modal');
+      const contentEl = document.getElementById('beat-sync-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Calculando compassos e quantização rítmica...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const bpm = 90.0;
+        const res = await fetch(`/api/beat/sync?project_id=${encodeURIComponent(currentPlan.project_id)}&bpm=${bpm}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro no sync de beat');
+        const s = data.result;
+
+        contentEl.innerHTML = `
+          <div style="background:#451a03; border-left:4px solid #f59e0b; padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:700; color:#fde68a; font-size:0.95rem;">🎵 Sincronizador de Beat Musical (Trailer Cut)</div>
+              <div style="font-size:0.8rem; color:#fef3c7; margin-top:2px;">
+                Tempo: <b>${s.tempo_bpm} BPM</b> | Intervalo de Batida: <b>${s.beat_duration_sec}s</b> | Cortes Quantizados: <b>${s.total_cuts_quantized}</b>
+              </div>
+            </div>
+            <button class="btn" style="background:#f59e0b; color:#000; font-weight:800; font-size:0.8rem;" onclick="aplicarBeatSync(${s.tempo_bpm})">⚡ Alinhar Timeline Agora</button>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto; margin-top:8px;">
+            ${(s.cut_points || []).map(c => `
+              <div style="background:var(--card-bg); border:1px solid var(--border); padding:8px 10px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;">
+                <b style="color:#fff;">Cena #${c.scene_order}</b>
+                <span style="color:var(--text-muted);">Duração: ${c.original_duration.toFixed(2)}s ➔ <b style="color:#10b981;">${c.quantized_duration.toFixed(2)}s</b></span>
+                <span style="background:#1e3a8a; color:#bfdbfe; font-size:0.72rem; padding:2px 6px; border-radius:4px;">${c.target_musical_bar} compassos (Shift: ${c.time_shift_ms}ms)</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharBeatSyncModal() {
+      document.getElementById('beat-sync-modal').style.display = 'none';
+    }
+    async function aplicarBeatSync(bpm) {
+      if (!currentPlan) return;
+      showStatus('Quantizando cortes da timeline nos tempos musicais...', '#f59e0b');
+      try {
+        const res = await fetch('/api/beat/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, bpm })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus('Timeline sincronizada no ritmo exato do beat!', '#10b981');
+          alert('Sucesso!\n\nAs durações das cenas foram matematicamente arredondadas para os tempos e compassos da música.');
+          fecharBeatSyncModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar sync: ' + e.message);
+      }
+    }
+
+    async function abrirVoiceEmotionModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('voice-emotion-modal');
+      const listEl = document.getElementById('voice-emotion-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Mapeando curvas de prosódia e dinâmica vocal...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/voice/emotions?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro nas inflexões de voz');
+        const v = data.result;
+
+        listEl.innerHTML = `
+          <div style="background:#2e1065; border-left:4px solid #8b5cf6; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#ddd6fe; font-size:0.95rem;">🎭 Diretor Neural de Inflexão Emocional da Voz</div>
+            <div style="font-size:0.8rem; color:#ede9fe; margin-top:2px;">
+              Prosódia SSML contextual por cena: velocidade, tom (pitch) e pausas respiratórias dinâmicas em <b>${v.total_scenes_directed}</b> cenas.
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; max-height:360px; overflow-y:auto; margin-top:8px;">
+            ${(v.inflections || []).map(i => `
+              <div style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:6px; font-size:0.82rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b style="color:#fff;">Cena #${i.scene_order}: <span style="color:#c084fc;">${i.narrative_mood}</span></b>
+                  <span style="background:#581c87; color:#f3e8ff; font-size:0.72rem; padding:2px 6px; border-radius:4px; font-weight:700;">Speed: ${i.speed_factor}x | Pitch: ${i.pitch_adjustment_hz}</span>
+                </div>
+                <div style="font-family:monospace; font-size:0.72rem; color:#a7f3d0; background:#0f172a; padding:6px; border-radius:4px; margin-top:4px; word-break:break-all;">
+                  ${i.ssml_prosody_snippet}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharVoiceEmotionModal() {
+      document.getElementById('voice-emotion-modal').style.display = 'none';
+    }
+
+    async function abrirChapterCardsModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('chapter-cards-modal');
+      const listEl = document.getElementById('chapter-cards-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Gerando cartelas cinematográficas de capítulos...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/chapters/cards?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro nas cartelas de capítulos');
+        const c = data.result;
+
+        listEl.innerHTML = `
+          <div style="background:#064e3b; border-left:4px solid #059669; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#a7f3d0; font-size:0.95rem;">🎬 Cartelas de Transição de Capítulos (Title Sequences)</div>
+            <div style="font-size:0.8rem; color:#d1fae5; margin-top:2px;">
+              Numeração em algarismos romanos, tipografia dourada e efeito sonoro de impacto foley embutido.
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; max-height:360px; overflow-y:auto; margin-top:8px;">
+            ${(c.cards || []).map(card => `
+              <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; color:#fbbf24; font-weight:700;">CAPÍTULO ${card.roman_numeral}</div>
+                  <b style="color:#fff; font-size:0.95rem; margin-top:2px; display:block;">${card.chapter_title}</b>
+                  <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">Duração: ${card.card_duration_sec}s | Áudio: ${card.foley_sound_effect}</div>
+                </div>
+                <span style="background:#065f46; color:#a7f3d0; font-size:0.75rem; padding:4px 8px; border-radius:4px; font-weight:700;">Pronto para Render</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharChapterCardsModal() {
+      document.getElementById('chapter-cards-modal').style.display = 'none';
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -2354,6 +2563,67 @@ O Segredo do Foco Profundo</textarea>
       <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
         <button class="btn btn-secondary" onclick="fecharMultiExportModal()">Cancelar</button>
         <button class="btn" style="background:#2563eb; color:#fff; font-weight:700;" onclick="executarMultiExport()">🚀 Exportar em Lote para Redes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Testador A/B de Ganchos -->
+  <div id="hook-tester-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:740px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎣 Testador A/B de Ganchos dos Primeiros 5 Segundos</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharHookTesterModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1;">
+        <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">
+          Selecione o arquétipo de abertura psicológica que melhor se adapta à proposta do seu vídeo:
+        </div>
+        <div id="hook-tester-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharHookTesterModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Sincronizador de Beat Musical -->
+  <div id="beat-sync-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎵 Sincronizador de Beat Drop & Cortes no Tempo</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharBeatSyncModal()">&times;</button>
+      </div>
+      <div id="beat-sync-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharBeatSyncModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Diretor de Emoção da Voz IA -->
+  <div id="voice-emotion-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:740px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎭 Diretor de Inflexão Emocional da Voz IA</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharVoiceEmotionModal()">&times;</button>
+      </div>
+      <div id="voice-emotion-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharVoiceEmotionModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cartelas de Capítulos HD -->
+  <div id="chapter-cards-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎬 Cartelas de Transição de Capítulos HD</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharChapterCardsModal()">&times;</button>
+      </div>
+      <div id="chapter-cards-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharChapterCardsModal()">Fechar</button>
       </div>
     </div>
   </div>
@@ -2872,6 +3142,46 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
         elif self.path.startswith("/api/multiexport/presets"):
             presets = SocialMediaMultiExportPresets.list_presets()
             return self.send_json({"ok": True, "presets": presets})
+        elif self.path.startswith("/api/hooks/variations"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            variations = AIStoryHookABSplitTester.generate_hook_variations(plan)
+            return self.send_json({"ok": True, "variations": [v.__dict__ for v in variations]})
+        elif self.path.startswith("/api/beat/sync"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            try:
+                bpm = float(params.get("bpm", ["90.0"])[0])
+            except ValueError:
+                bpm = 90.0
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            sync_res = SoundtrackBeatDropSceneSync.synchronize_timeline_to_bpm(plan, bpm=bpm)
+            return self.send_json({"ok": True, "result": sync_res})
+        elif self.path.startswith("/api/voice/emotions"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            emo_res = AIVoiceEmotionInflectionDirector.direct_project_voice_inflections(plan)
+            return self.send_json({"ok": True, "result": emo_res})
+        elif self.path.startswith("/api/chapters/cards"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            cards_res = AutoVideoChapterCardGenerator.generate_cards_for_plan(plan)
+            return self.send_json({"ok": True, "result": cards_res})
         else:
             self.send_response(404)
             self.end_headers()
@@ -3876,6 +4186,24 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
             manifest = SocialMediaMultiExportPresets.build_export_manifest(plan, selected_ids=selected)
             return self.send_json({"ok": True, "manifest": manifest})
+        elif self.path == "/api/hooks/apply":
+            proj_id = data.get("project_id")
+            hook_id = data.get("hook_id", "hook_provocative_question")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            plan = AIStoryHookABSplitTester.apply_hook_to_plan(plan, hook_id)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, "project_id": plan.project_id, "applied_hook_id": hook_id})
+        elif self.path == "/api/beat/apply":
+            proj_id = data.get("project_id")
+            bpm = float(data.get("bpm", 90.0))
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            res = SoundtrackBeatDropSceneSync.synchronize_timeline_to_bpm(plan, bpm=bpm)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **res})
         else:
             self.send_response(404)
             self.end_headers()

@@ -71,6 +71,10 @@
 - **Auditor de Retenção Visual & Preditor de Curva do YouTube (`VisualRetentionHeatmapAuditor`):** Mapeia a timeline segundo a segundo para localizar zonas mortas com cenas estáticas acima de 3.2s e oferece auto-remediação em 1 clique para evitar queda de audiência.
 - **Color Matcher Cinematográfico de Acervos (`SmartLutCinematicColorMatcher`):** Harmoniza balanço de branco, saturação e temperatura de cor (5600K Daylight) entre clipes de 75 acervos heterogêneos (NASA, Wikimedia, Pexels, Museus).
 - **Exportador Multiplataforma Simultâneo (`SocialMediaMultiExportPresets`):** Gera com um clique os pacotes de renderização ideais para YouTube Widescreen 16:9, Shorts/TikTok 9:16 vertical, Feed/LinkedIn 1:1 quadrado e Podcast MP3 (-16 LUFS).
+- **Testador A/B de Ganchos dos Primeiros 5 Segundos (`AIStoryHookABSplitTester`):** Formula 3 variações psicológicas de abertura (Pergunta Provocativa, Revelação de Clímax e Paradoxo Contra-Intuitivo) para retenção inicial máxima.
+- **Sincronizador Rítmico de Cortes no Beat Musical (`SoundtrackBeatDropSceneSync`):** Quantiza a duração das cenas aos compassos e tempos do BPM da música para ritmo envolvente de trailer de cinema.
+- **Diretor de Inflexão Emocional da Voz IA (`AIVoiceEmotionInflectionDirector`):** Modula prosódia, velocidade, pitch e pausas respiratórias conforme o tom dramático de cada cena (misterioso, clímax acelerado, reflexivo ou solene).
+- **Gerador de Cartelas de Abertura de Capítulo HD (`AutoVideoChapterCardGenerator`):** Renderiza vinhetas elegantes de transição de capítulos com algarismos romanos, tipografia cinematográfica e foley de impacto *sub-boom*.
 
 ---
 </div>
