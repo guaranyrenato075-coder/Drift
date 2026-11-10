@@ -106,6 +106,10 @@ from editing.hdr_to_sdr_tone_mapper import HDRToSDRToneMapper
 from analysis.thumbnail_face_detector import AIAutomatedThumbnailFaceDetector
 from audio.soundtrack_auto_loop_stretcher import SoundtrackAutoLoopStretcher
 from pipeline.auto_social_cutpack_exporter import AutoSocialCutpackExporter
+from editing.cinematic_lower_thirds_animator import CinematicLowerThirdsAnimator
+from analysis.visual_symmetry_aesthetic_auditor import VisualSymmetryAestheticAuditor
+from audio.stereo_to_51_surround_upmixer import StereoTo51SurroundUpmixer
+from pipeline.auto_color_palette_mood_extractor import AutoColorPaletteMoodExtractor
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -372,6 +376,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#38bdf8; color:#e0f2fe; font-weight:600;" onclick="abrirFaceDetectorModal()">👤 Foco Facial em Miniaturas</button>
       <button class="btn btn-secondary" style="border-color:#a855f7; color:#f5d0fe; font-weight:600;" onclick="abrirSoundtrackLoopModal()">🔁 Loop Infinito de Trilha</button>
       <button class="btn btn-secondary" style="border-color:#06b6d4; color:#cffafe; font-weight:600;" onclick="abrirCutpackModal()">📦 Exportador de Cutpack Social</button>
+      <button class="btn btn-secondary" style="border-color:#f43f5e; color:#ffe4e6; font-weight:600;" onclick="abrirLowerThirdsModal()">🏷️ Lower Thirds Animados</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirSymmetryModal()">📐 Auditoria Estética & Simetria</button>
+      <button class="btn btn-secondary" style="border-color:#6366f1; color:#e0e7ff; font-weight:600;" onclick="abrirSurroundModal()">🔊 Áudio Surround 5.1 (Cinema)</button>
+      <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirPaletteModal()">🎨 Paleta Cromática de Humor</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -3634,6 +3642,196 @@ O Segredo do Foco Profundo</textarea>
     function fecharCutpackModal() {
       document.getElementById('cutpack-modal').style.display = 'none';
     }
+
+    async function abrirLowerThirdsModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('lower-thirds-modal');
+      modal.style.display = 'flex';
+      gerarLowerThirdsPorEstilo('tech_cyber_bar');
+    }
+    function fecharLowerThirdsModal() {
+      document.getElementById('lower-thirds-modal').style.display = 'none';
+    }
+    async function gerarLowerThirdsPorEstilo(styleKey) {
+      const contentEl = document.getElementById('lower-thirds-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Gerando grafismos animados Lower Thirds...</div>';
+
+      try {
+        const res = await fetch(`/api/lower_thirds/generate?project_id=${currentPlan.project_id}&style=${styleKey}`);
+        const data = await res.json();
+        if (data.ok && data.lower_thirds) {
+          const lt = data.lower_thirds;
+          let html = `
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:8px; color:var(--text-main);">Escolha o Estilo de Motion Graphics:</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="gerarLowerThirdsPorEstilo('tech_cyber_bar')">Tech Cyber</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="gerarLowerThirdsPorEstilo('broadcast_news_slate')">Broadcast News</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="gerarLowerThirdsPorEstilo('documentary_minimal')">Documentary</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="gerarLowerThirdsPorEstilo('gold_luxury_serif')">Gold Luxury</button>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:8px; color:var(--text-main);">Grafismos Programados na Timeline (${lt.total_lower_thirds}):</div>
+          `;
+          lt.overlays.forEach(o => {
+            html += `
+              <div style="background:rgba(244,63,94,0.06); border:1px solid rgba(244,63,94,0.25); border-radius:6px; padding:10px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; color:#ffe4e6;">
+                  <span>"${o.title}" ${o.subtitle ? '— ' + o.subtitle : ''}</span>
+                  <span style="color:#f43f5e;">⏱️ ${o.start_time}s até ${o.end_time}s (${o.duration}s)</span>
+                </div>
+                <div style="font-size:0.75rem; color:#94a3b8; font-family:monospace; margin-top:4px;">
+                  FFmpeg: ${o.ffmpeg_filter}
+                </div>
+              </div>
+            `;
+          });
+          contentEl.innerHTML = html;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao gerar Lower Thirds: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirSymmetryModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('symmetry-modal');
+      const listEl = document.getElementById('symmetry-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Avaliando equilíbrio visual e simetria cinematográfica...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/aesthetic/symmetry/audit?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.aesthetic) {
+          const a = data.aesthetic;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:700; color:#10b981; font-size:0.95rem;">Auditoria Estética de Simetria</div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">${a.composition_philosophy}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:800; font-size:1.2rem; color:#86efac;">${a.average_aesthetic_score}/100</div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">${a.overall_aesthetic_grade}</div>
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Avaliação Cena a Cena (${a.total_scenes_audited}):</div>
+          `;
+          a.evaluations.forEach(ev => {
+            html += `
+              <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.25); border-radius:6px; padding:10px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; color:#d1fae5;">
+                  <span>Cena #${ev.scene_index} — ${ev.composition_style}</span>
+                  <span style="color:#10b981;">${ev.composition_score}/100</span>
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:3px;">${ev.recommendation}</div>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro ao auditar simetria: ${e.message}</div>`;
+      }
+    }
+    function fecharSymmetryModal() {
+      document.getElementById('symmetry-modal').style.display = 'none';
+    }
+
+    async function abrirSurroundModal() {
+      const modal = document.getElementById('surround-modal');
+      modal.style.display = 'flex';
+      calcularSurroundPreview();
+    }
+    function fecharSurroundModal() {
+      document.getElementById('surround-modal').style.display = 'none';
+    }
+    async function calcularSurroundPreview() {
+      const boostVal = document.getElementById('surround-boost') ? document.getElementById('surround-boost').value : '2.0';
+      const contentEl = document.getElementById('surround-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Gerando matriz de descorrelação surround 5.1...</div>';
+
+      try {
+        const res = await fetch(`/api/audio/surround51/calculate?boost=${boostVal}`);
+        const data = await res.json();
+        if (data.ok && data.surround) {
+          const s = data.surround;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; font-weight:700; color:#6366f1;">
+                <span>Padrão Multicanal: ${s.standard}</span>
+                <span style="color:#e0e7ff;">${s.channels_count} Canais (${s.channel_layout})</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                Corte LFE: ${s.lfe_cutoff_hz}Hz | Delay Traseiro: ${s.surround_delay_ms}ms | Ganho Vocal Central: +${s.center_boost_db}dB
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:6px; color:var(--text-main);">Matriz de Canais FFmpeg:</div>
+            <textarea readonly style="width:100%; height:75px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#c7d2fe; font-size:0.75rem; padding:8px; font-family:monospace; resize:none;">${s.ffmpeg_audio_filter}</textarea>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular surround: ${e.message}</div>`;
+      }
+    }
+    async function aplicarSurroundUpmix() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const boostVal = document.getElementById('surround-boost') ? document.getElementById('surround-boost').value : '2.0';
+      try {
+        const res = await fetch('/api/audio/surround51/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, boost: parseFloat(boostVal) })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Upmix surround 5.1 configurado com sucesso para a exportação de áudio master!');
+          fecharSurroundModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar: ' + e.message);
+      }
+    }
+
+    async function abrirPaletteModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('palette-modal');
+      const contentEl = document.getElementById('palette-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Extraindo paleta de cores cromática e psicologia do humor...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/palette/mood/extract?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.palette) {
+          const p = data.palette;
+          let swatchesHtml = '<div style="display:flex; height:65px; border-radius:8px; overflow:hidden; margin:14px 0; border:1px solid var(--border);">';
+          p.hex_colors.forEach(col => {
+            swatchesHtml += `
+              <div style="flex:1; background:${col}; display:flex; align-items:flex-end; justify-content:center; padding-bottom:6px;">
+                <span style="background:rgba(0,0,0,0.65); color:#fff; font-size:0.65rem; padding:2px 4px; border-radius:3px; font-family:monospace;">${col}</span>
+              </div>
+            `;
+          });
+          swatchesHtml += '</div>';
+
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:14px;">
+              <div style="font-weight:700; color:#ec4899; font-size:1.05rem;">${p.palette_name}</div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-top:3px;">Atmosfera: <b>${p.mood}</b></div>
+              ${swatchesHtml}
+              <div style="font-size:0.8rem; color:var(--text-muted);">
+                Essa paleta cromática foi calculada a partir dos termos narrativos e da densidade temática do roteiro para orientar a correção de cor (LUTs) e o design de miniaturas.
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao extrair paleta: ${e.message}</div>`;
+      }
+    }
+    function fecharPaletteModal() {
+      document.getElementById('palette-modal').style.display = 'none';
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -4559,6 +4757,70 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Lower Thirds Animados -->
+  <div id="lower-thirds-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🏷️ Lower Thirds & Grafismos Animados</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharLowerThirdsModal()">&times;</button>
+      </div>
+      <div id="lower-thirds-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharLowerThirdsModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Auditoria Estética & Simetria -->
+  <div id="symmetry-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📐 Auditoria de Simetria e Composição Estética</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharSymmetryModal()">&times;</button>
+      </div>
+      <div id="symmetry-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharSymmetryModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Áudio Surround 5.1 -->
+  <div id="surround-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🔊 Upmix Surround 5.1 (Home Theater & Cinema)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharSurroundModal()">&times;</button>
+      </div>
+      <div style="padding:14px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); display:flex; gap:16px; align-items:center;">
+        <div>
+          <label style="font-size:0.8rem; color:var(--text-muted);">Ganho Canal Central Vocal (dB):</label>
+          <input type="number" step="0.5" id="surround-boost" value="2.0" style="width:70px; padding:6px; background:#0f172a; border:1px solid var(--border); border-radius:4px; color:#fff; font-size:0.85rem;">
+        </div>
+        <button class="btn" style="background:#6366f1; color:#fff; font-weight:700; margin-top:16px;" onclick="calcularSurroundPreview()">Recalcular Matriz</button>
+      </div>
+      <div id="surround-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn" style="background:#6366f1; color:#fff; font-weight:700;" onclick="aplicarSurroundUpmix()">Aplicar 5.1 ao Master</button>
+        <button class="btn btn-secondary" onclick="fecharSurroundModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Paleta Cromática de Humor -->
+  <div id="palette-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎨 Extrator de Paleta Cromática e Psicologia de Humor</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharPaletteModal()">&times;</button>
+      </div>
+      <div id="palette-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharPaletteModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -5326,6 +5588,40 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
             cutpack_data = AutoSocialCutpackExporter.generate_cutpack_render_plan(plan)
             return self.send_json({"ok": True, "cutpack": cutpack_data})
+        elif self.path.startswith("/api/lower_thirds/generate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            style_name = params.get("style", ["tech_cyber_bar"])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            lt_data = CinematicLowerThirdsAnimator.generate_plan_lower_thirds(plan, style_name)
+            return self.send_json({"ok": True, "lower_thirds": lt_data})
+        elif self.path.startswith("/api/aesthetic/symmetry/audit"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            sym_data = VisualSymmetryAestheticAuditor.audit_composition_symmetry(plan)
+            return self.send_json({"ok": True, "aesthetic": sym_data})
+        elif self.path.startswith("/api/audio/surround51/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            boost = float(params.get("boost", [2.0])[0])
+            surround_data = StereoTo51SurroundUpmixer.build_51_surround_filter(center_dialogue_boost_db=boost)
+            return self.send_json({"ok": True, "surround": surround_data})
+        elif self.path.startswith("/api/palette/mood/extract"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            pal_data = AutoColorPaletteMoodExtractor.extract_palette_from_plan(plan)
+            return self.send_json({"ok": True, "palette": pal_data})
         else:
             self.send_response(404)
             self.end_headers()
@@ -6425,6 +6721,15 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             hdr_res = HDRToSDRToneMapper.apply_tone_mapping_to_plan(plan, preset_name)
             self.repo.save(plan)
             return self.send_json({"ok": True, **hdr_res})
+        elif self.path == "/api/audio/surround51/apply":
+            proj_id = data.get("project_id")
+            boost = float(data.get("boost", 2.0))
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            surr_res = StereoTo51SurroundUpmixer.apply_51_upmix_to_plan(plan, center_dialogue_boost_db=boost)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **surr_res})
         else:
             self.send_response(404)
             self.end_headers()

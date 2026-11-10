@@ -288,6 +288,10 @@ def audit_system():
         "analysis.thumbnail_face_detector",
         "audio.soundtrack_auto_loop_stretcher",
         "pipeline.auto_social_cutpack_exporter",
+        "editing.cinematic_lower_thirds_animator",
+        "analysis.visual_symmetry_aesthetic_auditor",
+        "audio.stereo_to_51_surround_upmixer",
+        "pipeline.auto_color_palette_mood_extractor",
     ]
 
     for mod_name in modules_to_test:
