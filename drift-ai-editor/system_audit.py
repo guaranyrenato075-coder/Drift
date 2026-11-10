@@ -236,6 +236,10 @@ def audit_system():
         "editing.color_grading_engine",
         "audio.sound_fx_foley",
         "pipeline.auto_chaptering",
+        "audio.smart_audio_denoise_enhancer",
+        "analysis.scene_pacing_auditor",
+        "analysis.script_tone_polisher",
+        "editing.safe_zone_framing",
     ]
 
     for mod_name in modules_to_test:

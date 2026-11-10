@@ -51,6 +51,10 @@
 - **Foley & Efeitos Sonoros Automáticos (`SoundFXAutoFoley`):** Detecção semântica de eventos na narração (passos, relógio, vento, câmera, trovão, livros) com injeção de micro-SFX e ducking inteligente.
 - **Capítulos Automáticos & Timestamps YouTube (`AutoChapteringEngine`):** Cálculo cumulativo exato de capítulos para descrição de vídeos no YouTube, WebVTT e marcadores MP4 Chaps.
 - **Live Preview Player Interativo:** Mini player embutido no topo da interface web permitindo assistir, pausar narrações e alternar entre cenas instantaneamente antes da exportação.
+- **Normalização Broadcast EBU R128 (`SmartAudioDenoiseEnhancer`):** Áudio masterizado para -14 LUFS com equalização de rádio e presença vocal cristalina, impedindo áudio baixo ou estourado.
+- **Auditoria de Ritmo & Retenção de Público (`ScenePacingAuditor`):** Análise de velocidade de fala em WPM (palavras por minuto), alertas de cenas estáticas monótonas e sugestões automáticas de corte dinâmico.
+- **Polidor de Tom de Roteiro com IA (`ScriptTonePolisher`):** Refatora o roteiro com 1 clique para formatos virais de alta retenção (Shorts/TikTok), documentários clássicos estilo BBC, mistério ou didático.
+- **Safe Zones para Vídeos Verticais (`SafeZoneMultiFormatFraming`):** Enquadramento e overlay 9:16 que garante que legendas e elementos visuais nunca sejam tapados pelos botões do TikTok, Shorts e Reels.
 
 ---
 </div>

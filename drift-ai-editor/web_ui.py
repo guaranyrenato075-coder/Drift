@@ -54,6 +54,10 @@ from storage.disk_space_guard import DiskSpaceGuard
 from editing.color_grading_engine import ColorGradingEngine
 from audio.sound_fx_foley import SoundFXAutoFoley
 from pipeline.auto_chaptering import AutoChapteringEngine
+from audio.smart_audio_denoise_enhancer import SmartAudioDenoiseEnhancer
+from analysis.scene_pacing_auditor import ScenePacingAuditor
+from analysis.script_tone_polisher import ScriptTonePolisher
+from editing.safe_zone_framing import SafeZoneMultiFormatFraming
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -270,6 +274,8 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#eab308; color:#fde047; font-weight:700;" onclick="abrirPilotoAutomatico()">🏭 Piloto Automático em Lote</button>
       <button class="btn btn-secondary" style="border-color:#38bdf8; color:#38bdf8; font-weight:600;" onclick="abrirCapitulosYouTube()">⏱️ Capítulos YouTube & Timestamps</button>
       <button class="btn btn-secondary" style="border-color:#c084fc; color:#e9d5ff; font-weight:600;" onclick="abrirFoleySonoro()">🔊 Foley & Efeitos Sonoros (SFX)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0; font-weight:600;" onclick="abrirAuditoriaRitmo()">⚡ Auditoria de Ritmo & WPM</button>
+      <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fde047; font-weight:600;" onclick="abrirPolidorTom()">✍️ Polidor de Tom de Roteiro</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -312,6 +318,9 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
             <span style="font-weight:700; color:#fff; font-size:0.95rem;">Live Preview Player</span>
             <span id="preview-scene-indicator" style="background:#1e293b; color:#93c5fd; border:1px solid #334155; font-size:0.75rem; padding:2px 8px; border-radius:12px;">Cena 1 de 1</span>
             <span id="preview-provider-badge"></span>
+            <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:4px; cursor:pointer; margin-left:8px;">
+              <input type="checkbox" id="chk-safe-zone" onchange="toggleSafeZoneOverlay(this.checked)"> Safe Zone 9:16
+            </label>
           </div>
           <div style="font-size:0.8rem; color:var(--text-muted); font-family:monospace;" id="preview-timing">00:00 / 00:00</div>
         </div>
@@ -320,6 +329,7 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
           <div id="preview-media-container" style="background:#090d16; border-radius:6px; height:158px; display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid var(--border); position:relative;">
             <img id="preview-media-img" src="" alt="Cena" style="width:100%; height:100%; object-fit:cover; display:none;" />
             <div id="preview-no-media" style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px;">Sem mídia selecionada</div>
+            <div id="preview-safe-zone-overlay" style="display:none; position:absolute; top:14%; bottom:22%; left:5%; right:16%; border:1px dashed rgba(239, 68, 68, 0.7); pointer-events:none; box-shadow:inset 0 0 10px rgba(239, 68, 68, 0.2);"></div>
           </div>
           <div style="display:flex; flex-direction:column; gap:8px;">
             <div style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Narração Falada:</div>
@@ -1219,7 +1229,128 @@ O Segredo do Foco Profundo</textarea>
     function fecharFoleySonoro() {
       document.getElementById('foley-modal').style.display = 'none';
     }
+
+    function toggleSafeZoneOverlay(enabled) {
+      const ov = document.getElementById('preview-safe-zone-overlay');
+      if (ov) ov.style.display = enabled ? 'block' : 'none';
+    }
+
+    async function abrirAuditoriaRitmo() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      const res = await fetch(`/api/pacing_audit?project_id=${currentPlan.project_id}`);
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('pacing-score').innerText = `${data.overall_retention_score}/100`;
+        document.getElementById('pacing-score').style.color = data.overall_retention_score >= 80 ? '#10b981' : (data.overall_retention_score >= 60 ? '#f59e0b' : '#ef4444');
+        document.getElementById('pacing-summary').innerText = data.summary;
+        document.getElementById('pacing-wpm').innerText = `${data.average_wpm} WPM Médio`;
+        
+        const list = document.getElementById('pacing-scenes-list');
+        list.innerHTML = data.scene_metrics.map(m => {
+          let badgeColor = m.risk_level === 'safe' ? '#065f46' : (m.risk_level === 'moderate' ? '#854d0e' : '#991b1b');
+          let textColor = m.risk_level === 'safe' ? '#a7f3d0' : (m.risk_level === 'moderate' ? '#fef08a' : '#fecaca');
+          return `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:10px 14px; display:flex; flex-direction:column; gap:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#fff;">Cena ${m.scene_order} (${m.duration_sec}s | ${m.word_count} palavras)</span>
+                <span style="background:${badgeColor}; color:${textColor}; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:700;">${m.wpm} WPM - ${m.risk_level.toUpperCase()}</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${m.actionable_recommendation}</div>
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('pacing-modal').style.display = 'flex';
+      }
+    }
+    function fecharAuditoriaRitmo() {
+      document.getElementById('pacing-modal').style.display = 'none';
+    }
+
+    function abrirPolidorTom() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      document.getElementById('tone-modal').style.display = 'flex';
+    }
+    function fecharPolidorTom() {
+      document.getElementById('tone-modal').style.display = 'none';
+    }
+    async function aplicarPolimentoTom() {
+      if (!currentPlan) return;
+      const toneId = document.getElementById('tone-select').value;
+      showStatus('Polindo estilo e ganchos do roteiro...', '#d97706');
+      try {
+        const res = await fetch('/api/polish_tone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, tone_id: toneId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          currentPlan = data.plan;
+          renderScenes();
+          fecharPolidorTom();
+          showStatus('Roteiro polido com sucesso para alto engajamento!', '#059669');
+          setTimeout(() => { document.getElementById('status-banner').style.display = 'none'; }, 3000);
+        }
+      } catch (e) {
+        alert('Erro ao polir roteiro: ' + e);
+      }
+    }
   </script>
+
+  <!-- Modal de Auditoria de Ritmo & WPM -->
+  <div id="pacing-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:680px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">⚡ Auditoria de Ritmo & Retenção de Público</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharAuditoriaRitmo()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; text-align:center;">
+            <div style="font-size:0.75rem; color:var(--text-muted);">SCORE GERAL DE RETENÇÃO</div>
+            <div id="pacing-score" style="font-size:1.8rem; font-weight:800; color:#10b981; margin-top:4px;">100/100</div>
+          </div>
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; text-align:center;">
+            <div style="font-size:0.75rem; color:var(--text-muted);">VELOCIDADE MÉDIA VOCAL</div>
+            <div id="pacing-wpm" style="font-size:1.8rem; font-weight:800; color:#38bdf8; margin-top:4px;">145 WPM</div>
+          </div>
+        </div>
+        <div id="pacing-summary" style="font-size:0.85rem; color:#cbd5e1; background:rgba(30,58,138,0.2); border:1px solid #1e3a8a; padding:10px 14px; border-radius:6px;"></div>
+        <div style="font-weight:600; color:#fff; font-size:0.9rem;">Análise Cena a Cena:</div>
+        <div id="pacing-scenes-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAuditoriaRitmo()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Polimento de Tom -->
+  <div id="tone-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:560px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">✍️ Polidor de Tom de Roteiro (IA)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharPolidorTom()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="font-size:0.85rem; color:var(--text-muted);">Selecione o arquétipo narrativo para reestruturar as frases e ganchos:</div>
+        <select id="tone-select" style="padding:10px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px; font-size:0.9rem;">
+          <option value="shorts_viral" selected>⚡ Viral Dinâmico (Shorts / Reels / TikTok)</option>
+          <option value="bbc_documentary">🏛️ Documentário Solene (Estilo BBC / History)</option>
+          <option value="mystery_investigation">🕵️ Investigação & Suspense (True Crime / Sci-Fi)</option>
+          <option value="didactic_friendly">🎓 Didático & Inspirador (Educação & Negócios)</option>
+        </select>
+        <div style="font-size:0.8rem; color:#94a3b8; line-height:1.4; background:var(--card-bg); padding:10px; border-radius:6px; border:1px solid var(--border);">
+          💡 <b>Dica:</b> O modo <b>Viral Dinâmico</b> injeta um gancho nos primeiros 3 segundos e encurta as orações para maximizar o percentual de visualização média (AVD).
+        </div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharPolidorTom()">Cancelar</button>
+        <button class="btn btn-success" onclick="aplicarPolimentoTom()">✨ Aplicar Novo Tom</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal de Capítulos YouTube -->
   <div id="chapters-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
@@ -1390,6 +1521,39 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             return self.send_json({
                 "ok": True,
                 **foley_manifest
+            })
+        elif self.path.startswith("/api/pacing_audit"):
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            rep = ScenePacingAuditor.audit_plan(plan)
+            return self.send_json({
+                "ok": True,
+                "project_id": rep.project_id,
+                "overall_retention_score": rep.overall_retention_score,
+                "average_wpm": rep.average_wpm,
+                "total_scenes_analyzed": rep.total_scenes_analyzed,
+                "monotonous_scenes_count": rep.monotonous_scenes_count,
+                "scenes_requiring_attention": rep.scenes_requiring_attention,
+                "summary": rep.summary,
+                "scene_metrics": [m.__dict__ for m in rep.scene_metrics]
+            })
+        elif self.path.startswith("/api/safe_zones"):
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            ratio = params.get("aspect_ratio", ["portrait"])[0]
+            bounds = SafeZoneMultiFormatFraming.calculate_pixel_bounds(1080, 1920, ratio)
+            css_guide = SafeZoneMultiFormatFraming.generate_css_overlay_guide(ratio)
+            return self.send_json({
+                "ok": True,
+                "aspect_ratio": ratio,
+                "bounds": bounds,
+                "css_overlay": css_guide
             })
         elif self.path.startswith("/api/adaptive_crf"):
             import urllib.parse
@@ -2461,6 +2625,16 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             self.repo.save(plan)
             filter_str = ColorGradingEngine.get_filter(preset_id)
             return self.send_json({"ok": True, "preset_id": preset_id, "ffmpeg_filter": filter_str})
+
+        elif self.path == "/api/polish_tone":
+            project_id = data.get("project_id")
+            tone_id = data.get("tone_id", "shorts_viral")
+            plan = self.repo.get(project_id)
+            if not plan:
+                return self.send_json({"ok": False, "error": "Not found"}, 404)
+            ScriptTonePolisher.polish_plan(plan, tone_id)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, "plan": plan.to_dict()})
         else:
             self.send_response(404)
             self.end_headers()
