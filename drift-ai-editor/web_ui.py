@@ -82,6 +82,10 @@ from pipeline.thumbnail_variator_ab import AIAutomatedThumbnailVariatorAB
 from core.hardware_gpu_tuner import AdaptiveHardwareGPUAutoTuner
 from editing.retention_pacer import SmartAudienceRetentionPacer
 from pipeline.youtube_community_packager import AutoYouTubeCommunityPostPackager
+from audio.spatial_audio_panner import BinauralSpatialAudioPanner
+from editing.end_screen_card_director import AIAutomatedEndScreenCardDirector
+from audio.loudness_broadcast_normalizer import SmartLoudnessBroadcastNormalizer
+from analysis.vocabulary_hook_auditor import ViralHookVocabularyAuditor
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -324,6 +328,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirHardwareTunerModal()">⚡ Auto-Tuner GPU/CPU Hardware</button>
       <button class="btn btn-secondary" style="border-color:#ef4444; color:#fecaca; font-weight:600;" onclick="abrirRetentionPacerModal()">💓 Ritmo Cardíaco & Dopamina</button>
       <button class="btn" style="background:#0284c7; color:#fff; font-weight:700;" onclick="abrirCommunityPostModal()">📢 Posts de Comunidade & Enquetes</button>
+      <button class="btn btn-secondary" style="border-color:#06b6d4; color:#a5f3fc; font-weight:600;" onclick="abrirSpatialAudioModal()">🎧 Áudio Espacial 3D (8D)</button>
+      <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fde68a; font-weight:600;" onclick="abrirEndScreenModal()">🎬 Telas Finais YouTube (End-Screen)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0; font-weight:600;" onclick="abrirLoudnessModal()">🎚️ Normalizador -14 LUFS (EBU R128)</button>
+      <button class="btn" style="background:#7c3aed; color:#fff; font-weight:700;" onclick="abrirVocabularyModal()">🧠 Auditor Neuro-Linguístico</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -2382,6 +2390,212 @@ O Segredo do Foco Profundo</textarea>
       navigator.clipboard.writeText(txt);
       alert('Texto copiado com sucesso para a área de transferência!');
     }
+
+    // === OMEGA STUDIO: SPATIAL AUDIO 8D, END SCREEN, LOUDNORM -14 LUFS, VOCABULARY AUDITOR ===
+    async function abrirSpatialAudioModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('spatial-audio-modal');
+      const listEl = document.getElementById('spatial-audio-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Calculando trajetórias estéreo 3D e modelagem binaural 8D...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/audio/spatial?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro no áudio espacial');
+        const s = data.manifest;
+
+        listEl.innerHTML = `
+          <div style="background:#083344; border-left:4px solid #06b6d4; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#a5f3fc; font-size:0.95rem;">🎧 ${s.binaural_mode}</div>
+            <div style="font-size:0.8rem; color:#cffafe; margin-top:2px;">
+              Panning dinâmico e expansão de campo estéreo aplicado em <b>${s.total_spatial_events}</b> cenas para imersão em fones de ouvido.
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; max-height:360px; overflow-y:auto; margin-top:8px;">
+            ${(s.events || []).map(e => `
+              <div style="background:var(--card-bg); border:1px solid var(--border); padding:8px 10px; border-radius:4px; font-size:0.8rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b style="color:#fff;">Cena #${e.scene_order}: <span style="color:#38bdf8;">${e.pan_trajectory}</span></b>
+                  <span style="background:#164e63; color:#a5f3fc; font-size:0.72rem; padding:2px 6px; border-radius:4px; font-weight:700;">${e.duration_sec}s</span>
+                </div>
+                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:3px;">${e.narrative_justification}</div>
+                <div style="font-family:monospace; font-size:0.7rem; color:#10b981; background:#0f172a; padding:4px 6px; border-radius:4px; margin-top:4px; word-break:break-all;">
+                  ${e.ffmpeg_pan_filter}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharSpatialAudioModal() {
+      document.getElementById('spatial-audio-modal').style.display = 'none';
+    }
+
+    async function abrirEndScreenModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('end-screen-modal');
+      const contentEl = document.getElementById('end-screen-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Planejando tela final com safe zone do YouTube Studio...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/endscreen/plan?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro na tela final');
+        const es = data.plan;
+
+        contentEl.innerHTML = `
+          <div style="background:#451a03; border-left:4px solid #f59e0b; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#fde68a; font-size:0.95rem;">🎬 Telas Finais Cinematográficas (Últimos ${es.end_screen_duration_sec}s)</div>
+            <div style="font-size:0.8rem; color:#fef3c7; margin-top:2px;">
+              Áreas demarcadas milimetricamente para os cards nativos do YouTube Studio sem obstruir o conteúdo.
+            </div>
+          </div>
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+            <div>
+              <b style="color:#93c5fd; font-size:0.85rem;">Chamada para Ação (CTA Headline):</b>
+              <div style="color:#fff; font-size:0.95rem; font-weight:700; margin-top:3px;">"${es.cta_headline}"</div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px;">
+              <div style="background:#0f172a; padding:8px; border-radius:4px; font-size:0.78rem;">
+                <b style="color:#fbbf24;">📦 Card Próximo Vídeo (16:9):</b>
+                <div style="color:#cbd5e1; font-family:monospace; margin-top:2px;">${es.youtube_box_coordinates}</div>
+              </div>
+              <div style="background:#0f172a; padding:8px; border-radius:4px; font-size:0.78rem;">
+                <b style="color:#38bdf8;">🔘 Card Inscrever-se (Canal):</b>
+                <div style="color:#cbd5e1; font-family:monospace; margin-top:2px;">${es.subscribe_coordinates}</div>
+              </div>
+            </div>
+            <div style="font-family:monospace; font-size:0.72rem; color:#10b981; background:#0f172a; padding:6px; border-radius:4px; margin-top:4px; word-break:break-all;">
+              ${es.ffmpeg_outro_filter}
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharEndScreenModal() {
+      document.getElementById('end-screen-modal').style.display = 'none';
+    }
+
+    async function abrirLoudnessModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('loudness-modal');
+      const contentEl = document.getElementById('loudness-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Calculando normalização EBU R128 e ITU-R BS.1770-4...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/audio/loudness?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro no normalizador de loudness');
+        const l = data.loudness;
+
+        contentEl.innerHTML = `
+          <div style="background:#064e3b; border-left:4px solid #10b981; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#a7f3d0; font-size:0.95rem;">🎚️ Normalização Padrão Mundial: ${l.selected_target}</div>
+            <div style="font-size:0.8rem; color:#d1fae5; margin-top:2px;">
+              Proteção total contra a penalidade algorítmica de volume do YouTube: Integrated Loudness em <b>${l.target_lufs} LUFS</b> | True Peak: <b>${l.target_true_peak} dBTP</b>.
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; margin-top:8px;">
+            ${(l.all_presets || []).map(p => `
+              <div style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <b style="color:#fff; font-size:0.9rem;">${p.platform_name}</b>
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">LRA: ${p.loudness_range_lra} | True Peak: ${p.true_peak_dbtp} dBTP | Bitrate: ${p.recommended_bitrate}</div>
+                </div>
+                <span style="font-family:monospace; font-size:0.75rem; color:#10b981; background:#0f172a; padding:4px 8px; border-radius:4px;">${p.ffmpeg_loudnorm_filter}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharLoudnessModal() {
+      document.getElementById('loudness-modal').style.display = 'none';
+    }
+
+    async function abrirVocabularyModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('vocabulary-modal');
+      const listEl = document.getElementById('vocabulary-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Varrendo roteiro em busca de frases passivas e clichês...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/vocabulary/audit?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro no auditor de vocabulário');
+        const v = data.result;
+
+        const gradeColor = v.script_grade === 'A+' ? '#10b981' : (v.script_grade === 'B+' ? '#f59e0b' : '#ef4444');
+
+        listEl.innerHTML = `
+          <div style="background:#2e1065; border-left:4px solid #7c3aed; padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:700; color:#ddd6fe; font-size:0.95rem;">🧠 Auditor Neuro-Linguístico de Roteiro</div>
+              <div style="font-size:0.8rem; color:#ede9fe; margin-top:2px;">
+                Pontuação de Impacto: <b>${v.neuro_linguistic_score}/100</b> | Termos Fracos Encontrados: <b>${v.total_weak_phrases_found}</b>
+              </div>
+            </div>
+            <div style="text-align:center; background:#1e1b4b; padding:6px 14px; border-radius:8px;">
+              <div style="font-size:0.7rem; color:#c4b5fd;">Nota do Roteiro:</div>
+              <b style="font-size:1.4rem; color:${gradeColor};">${v.script_grade}</b>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="color:#fff; font-size:0.85rem;">Substituições Neuro-Linguísticas Recomendadas:</b>
+              ${v.total_weak_phrases_found > 0 ? `<button class="btn" style="background:#7c3aed; color:#fff; font-weight:700; font-size:0.75rem;" onclick="aprimorarVocabularioAuto()">⚡ Polir Vocabulário Automaticamente</button>` : ''}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; margin-top:8px;">
+              ${v.total_weak_phrases_found === 0 ? '<div style="color:#10b981; font-size:0.82rem; padding:10px;">✅ Vocabulário perfeito! Nenhum clichê ou frase passiva detectada.</div>' : ''}
+              ${(v.issues || []).map(i => `
+                <div style="background:var(--card-bg); border:1px solid var(--border); padding:8px 10px; border-radius:6px; font-size:0.8rem;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#ef4444; text-decoration:line-through; font-weight:600;">"${i.weak_phrase}"</span>
+                    <span style="color:#10b981; font-weight:700;">➔ "${i.suggested_replacement}"</span>
+                  </div>
+                  <div style="color:var(--text-muted); font-size:0.72rem; margin-top:3px;">Cena #${i.scene_order}: ${i.justification} (+${i.impact_gain_pct}% engajamento)</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharVocabularyModal() {
+      document.getElementById('vocabulary-modal').style.display = 'none';
+    }
+    async function aprimorarVocabularioAuto() {
+      if (!currentPlan) return;
+      showStatus('Substituindo frases passivas por gatilhos hipnóticos...', '#7c3aed');
+      try {
+        const res = await fetch('/api/vocabulary/enhance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Roteiro aprimorado com sucesso! ${data.total_phrases_enhanced} termos polidos.`, '#10b981');
+          alert(`Sucesso!\n\n${data.total_phrases_enhanced} termos passivos foram substituídos por gatilhos de alta conversão.`);
+          abrirVocabularyModal();
+        }
+      } catch (e) {
+        alert('Erro ao aprimorar: ' + e.message);
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -2902,6 +3116,63 @@ O Segredo do Foco Profundo</textarea>
       <div id="community-post-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
       <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
         <button class="btn btn-secondary" onclick="fecharCommunityPostModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Áudio Espacial 3D (8D) -->
+  <div id="spatial-audio-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎧 Áudio Espacial 3D & Efeitos Binaurais 8D</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharSpatialAudioModal()">&times;</button>
+      </div>
+      <div id="spatial-audio-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharSpatialAudioModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Telas Finais YouTube -->
+  <div id="end-screen-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎬 Diretor de Telas Finais YouTube (End-Screen)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharEndScreenModal()">&times;</button>
+      </div>
+      <div id="end-screen-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharEndScreenModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Normalização de Loudness (-14 LUFS) -->
+  <div id="loudness-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎚️ Normalizador de Volume Broadcast (-14 LUFS / EBU R128)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharLoudnessModal()">&times;</button>
+      </div>
+      <div id="loudness-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharLoudnessModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Auditor Neuro-Linguístico de Roteiro -->
+  <div id="vocabulary-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🧠 Auditor Neuro-Linguístico de Roteiro (Viral Hooks)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharVocabularyModal()">&times;</button>
+      </div>
+      <div id="vocabulary-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn" style="background:#7c3aed; color:#fff; font-weight:700;" onclick="aprimorarVocabularioAuto()">✨ Aprimorar Roteiro Automaticamente</button>
+        <button class="btn btn-secondary" onclick="fecharVocabularyModal()">Fechar</button>
       </div>
     </div>
   </div>
@@ -3490,6 +3761,42 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
             comm_kit = AutoYouTubeCommunityPostPackager.export_kit_dict(plan)
             return self.send_json({"ok": True, "kit": comm_kit})
+        elif self.path.startswith("/api/audio/spatial"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            spatial_data = BinauralSpatialAudioPanner.generate_panning_script(plan)
+            return self.send_json({"ok": True, **spatial_data})
+        elif self.path.startswith("/api/endscreen/plan"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            endscreen_data = AIAutomatedEndScreenCardDirector.generate_end_screen_layout(plan)
+            return self.send_json({"ok": True, "end_screen": endscreen_data})
+        elif self.path.startswith("/api/audio/loudness"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            loudness_data = SmartLoudnessBroadcastNormalizer.calculate_loudness_profile(plan)
+            return self.send_json({"ok": True, "loudness": loudness_data})
+        elif self.path.startswith("/api/vocabulary/audit"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            audit_data = ViralHookVocabularyAuditor.audit_script_vocabulary(plan)
+            return self.send_json({"ok": True, "audit": audit_data})
         else:
             self.send_response(404)
             self.end_headers()
@@ -4520,6 +4827,14 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             pacing_res = SmartAudienceRetentionPacer.calculate_pacing_waves(plan)
             self.repo.save(plan)
             return self.send_json({"ok": True, **pacing_res})
+        elif self.path == "/api/vocabulary/enhance":
+            proj_id = data.get("project_id")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            enhance_data = ViralHookVocabularyAuditor.enhance_script_dialogue(plan)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **enhance_data})
         else:
             self.send_response(404)
             self.end_headers()

@@ -264,6 +264,10 @@ def audit_system():
         "core.hardware_gpu_tuner",
         "editing.retention_pacer",
         "pipeline.youtube_community_packager",
+        "audio.spatial_audio_panner",
+        "editing.end_screen_card_director",
+        "audio.loudness_broadcast_normalizer",
+        "analysis.vocabulary_hook_auditor",
     ]
 
     for mod_name in modules_to_test:
