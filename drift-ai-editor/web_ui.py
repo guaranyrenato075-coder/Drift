@@ -70,6 +70,10 @@ from pipeline.hashtag_tag_cloud_generator import AIHashtagTagCloudGenerator
 from editing.smart_ken_burns_director import SmartSceneKenBurnsDirector
 from editing.watermark_branding_engine import VideoWatermarkBrandingEngine, BrandingConfig
 from pipeline.preset_video_templates import OneClickPresetVideoTemplates
+from audio.dynamic_ducking_punch_director import DynamicZoomPunchAudioDuckingDirector
+from analysis.retention_heatmap_auditor import VisualRetentionHeatmapAuditor
+from editing.smart_color_matcher import SmartLutCinematicColorMatcher
+from pipeline.multi_export_orchestrator import SocialMediaMultiExportPresets
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -300,6 +304,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#a855f7; color:#e9d5ff; font-weight:600;" onclick="abrirKenBurnsDirector()">🎥 Diretor de Câmera Ken Burns</button>
       <button class="btn btn-secondary" style="border-color:#ec4899; color:#fbcfe8; font-weight:600;" onclick="abrirBrandingModal()">🛡️ Marca D'água & Branding</button>
       <button class="btn" style="background:#7c3aed; color:#fff; font-weight:700;" onclick="abrirTemplatesModal()">⚡ Templates de Canal em 1-Clique</button>
+      <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fde68a; font-weight:600;" onclick="abrirDuckingPunchModal()">🎙️ Punch-In & Auto-Ducking BGM</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0; font-weight:600;" onclick="abrirRetentionModal()">📊 Curva de Retenção & Heatmap</button>
+      <button class="btn btn-secondary" style="border-color:#06b6d4; color:#a5f3fc; font-weight:600;" onclick="abrirColorMatcherModal()">🎨 Color Matcher de Acervos (5600K)</button>
+      <button class="btn" style="background:#2563eb; color:#fff; font-weight:700;" onclick="abrirMultiExportModal()">📱 Multi-Export Simultâneo (1-Clique)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -1718,6 +1726,236 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao aplicar template: ' + e.message);
       }
     }
+
+    // === MASTER STUDIO: DUCKING PUNCH, RETENTION HEATMAP, COLOR MATCHER, MULTI-EXPORT ===
+    async function abrirDuckingPunchModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('ducking-punch-modal');
+      const contentEl = document.getElementById('ducking-punch-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Analisando curva vocal e calculando sidechain ducking...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/ducking/plan?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro ao gerar plano de punch-in');
+        const d = data.plan;
+
+        contentEl.innerHTML = `
+          <div style="background:#451a03; border-left:4px solid #f59e0b; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#fde68a; font-size:0.95rem;">🎙️ Sidechain Ducking Dinâmico & Micro Punch-Ins</div>
+            <div style="font-size:0.8rem; color:#fef3c7; margin-top:2px;">
+              Trilha BGM atenuada em -14dB durante fala | <b>${d.total_punch_triggers}</b> palavras-chave de ênfase vocal detectadas.
+            </div>
+          </div>
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:6px; margin-top:8px;">
+            <b style="color:#93c5fd; font-size:0.85rem;">Filtro de Ducking FFmpeg (Automático):</b>
+            <div style="font-family:monospace; font-size:0.75rem; color:#10b981; background:#0f172a; padding:6px; border-radius:4px; margin-top:4px; word-break:break-all;">
+              ${d.sidechain_ducking_filter}
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <b style="color:#fff; font-size:0.85rem;">Gatilhos de Punch-In Detectados:</b>
+            <div style="display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; margin-top:6px;">
+              ${(d.triggers || []).map(t => `
+                <div style="background:var(--card-bg); border:1px solid var(--border); padding:8px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;">
+                  <div>
+                    <span style="background:#78350f; color:#fef3c7; font-weight:700; padding:2px 6px; border-radius:4px;">Cena #${t.scene_order}</span>
+                    <b style="color:#f59e0b; margin-left:6px;">"${t.trigger_word}"</b>
+                    <span style="color:var(--text-muted); font-size:0.75rem; margin-left:6px;">às ${t.timestamp_offset_sec}s</span>
+                  </div>
+                  <span style="background:#1e3a8a; color:#bfdbfe; font-size:0.72rem; padding:2px 6px; border-radius:4px; font-weight:700;">Zoom: ${t.zoom_level}x (${t.duration_sec}s)</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharDuckingPunchModal() {
+      document.getElementById('ducking-punch-modal').style.display = 'none';
+    }
+
+    async function abrirRetentionModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('retention-modal');
+      const contentEl = document.getElementById('retention-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Auditando curva de retenção do YouTube...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/retention/audit?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro na auditoria de retenção');
+        const r = data.result;
+
+        const gradeColor = r.overall_pacing_grade === 'A+' ? '#10b981' : (r.overall_pacing_grade === 'B' ? '#f59e0b' : '#ef4444');
+
+        contentEl.innerHTML = `
+          <div style="background:#064e3b; border-left:4px solid #10b981; padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:700; color:#a7f3d0; font-size:0.95rem;">📊 Curva Preditiva de Retenção & Atenção Visual</div>
+              <div style="font-size:0.8rem; color:#d1fae5; margin-top:2px;">
+                Duração: <b>${r.total_timeline_duration_sec}s</b> | Retenção Média Prevista: <b>${r.average_predicted_retention_pct}%</b>
+              </div>
+            </div>
+            <div style="text-align:center; background:#022c22; padding:6px 14px; border-radius:8px;">
+              <div style="font-size:0.7rem; color:#a7f3d0;">Nota de Ritmo:</div>
+              <b style="font-size:1.4rem; color:${gradeColor};">${r.overall_pacing_grade}</b>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="color:#fff; font-size:0.85rem;">Zonas de Risco de Queda de Audiência (${r.total_risk_zones_found}):</b>
+              ${r.total_risk_zones_found > 0 ? `<button class="btn btn-secondary" style="font-size:0.75rem; border-color:#10b981; color:#a7f3d0;" onclick="remediarRetencaoAuto()">⚡ Auto-Corrigir Zonas Mortas (1-Clique)</button>` : ''}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; margin-top:8px;">
+              ${r.total_risk_zones_found === 0 ? '<div style="color:#10b981; font-size:0.82rem; padding:10px;">✅ Nenhuma zona morta detectada! Ritmo cinematográfico perfeito.</div>' : ''}
+              ${(r.risk_zones || []).map(z => `
+                <div style="background:var(--card-bg); border:1px solid #374151; padding:8px 10px; border-radius:6px; font-size:0.8rem;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="font-weight:700; color:#f87171;">Cena #${z.scene_order} (${z.start_sec}s - ${z.end_sec}s)</span>
+                    <span style="background:#7f1d1d; color:#fecaca; font-weight:700; font-size:0.7rem; padding:2px 6px; border-radius:4px;">Risco ${z.risk_level}</span>
+                  </div>
+                  <div style="color:var(--text-muted); font-size:0.75rem; margin-top:3px;">${z.reason}</div>
+                  <div style="color:#6ee7b7; font-size:0.72rem; margin-top:3px;">💡 Sugestão: ${z.remediation_suggestion}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharRetentionModal() {
+      document.getElementById('retention-modal').style.display = 'none';
+    }
+    async function remediarRetencaoAuto() {
+      if (!currentPlan) return;
+      showStatus('Auto-corrigindo zonas de risco de atenção...', '#10b981');
+      try {
+        const res = await fetch('/api/retention/remediate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Zonas mortas corrigidas: ${data.remediated_scenes_count} cenas otimizadas!`, '#10b981');
+          alert(`Sucesso!\n\n${data.remediated_scenes_count} cenas foram aceleradas com cortes dinâmicos de punch-in e transições orgânicas.`);
+          abrirRetentionModal();
+        }
+      } catch (e) {
+        alert('Erro ao remediar: ' + e.message);
+      }
+    }
+
+    async function abrirColorMatcherModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('color-matcher-modal');
+      const contentEl = document.getElementById('color-matcher-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Harmonizando temperatura de cores para 5600K Daylight...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/color/harmonize?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro ao harmonizar cores');
+        const c = data.result;
+
+        contentEl.innerHTML = `
+          <div style="background:#083344; border-left:4px solid #06b6d4; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#a5f3fc; font-size:0.95rem;">🎨 Color Matcher de Acervos Heterogêneos (Padrão 5600K)</div>
+            <div style="font-size:0.8rem; color:#cffafe; margin-top:2px;">
+              Alinhamento cromático unificado: <b>${c.target_aesthetic}</b> em <b>${c.total_scenes_harmonized}</b> cenas.
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; max-height:360px; overflow-y:auto; margin-top:8px;">
+            ${(c.recipes || []).map(r => `
+              <div style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:6px; font-size:0.82rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b style="color:#fff;">Cena #${r.scene_order} (Viés: ${r.detected_color_bias})</b>
+                  <span style="background:#155e75; color:#cffafe; font-size:0.72rem; padding:2px 6px; border-radius:4px; font-weight:700;">${r.target_temperature}</span>
+                </div>
+                <div style="color:#94a3b8; font-size:0.75rem; margin-top:3px;">${r.explanation}</div>
+                <div style="font-family:monospace; font-size:0.72rem; color:#38bdf8; background:#0f172a; padding:4px 6px; border-radius:4px; margin-top:4px;">
+                  ${r.ffmpeg_filter}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharColorMatcherModal() {
+      document.getElementById('color-matcher-modal').style.display = 'none';
+    }
+
+    async function abrirMultiExportModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('multiexport-modal');
+      const listEl = document.getElementById('multiexport-presets-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Carregando formatos de renderização...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch('/api/multiexport/presets');
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro ao listar presets');
+
+        listEl.innerHTML = (data.presets || []).map(p => `
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="chk-export-${p.preset_id}" checked style="width:16px; height:16px;">
+                <b style="color:#fff; font-size:0.95rem;">${p.name}</b>
+                <span style="background:#1e3a8a; color:#bfdbfe; font-size:0.72rem; padding:2px 6px; border-radius:4px; font-weight:700;">${p.aspect_ratio}</span>
+              </div>
+              <div style="color:var(--text-muted); font-size:0.8rem; margin-top:4px; margin-left:24px;">${p.recommended_use}</div>
+            </div>
+            <span style="font-size:0.75rem; color:#10b981; font-weight:700;">${p.audio_lufs} LUFS</span>
+          </div>
+        `).join('');
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharMultiExportModal() {
+      document.getElementById('multiexport-modal').style.display = 'none';
+    }
+    async function executarMultiExport() {
+      if (!currentPlan) return;
+      const checkboxes = document.querySelectorAll('[id^="chk-export-"]');
+      const selected = [];
+      checkboxes.forEach(c => {
+        if (c.checked) selected.push(c.id.replace('chk-export-', ''));
+      });
+      if (!selected.length) return alert('Selecione pelo menos uma plataforma para exportar!');
+
+      showStatus('Orquestrando exportações multiplataforma...', '#2563eb');
+      try {
+        const res = await fetch('/api/multiexport/render', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, presets: selected })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Manifesto de renderização gerado com ${data.manifest.total_exports_planned} formatos!`, '#10b981');
+          alert(`Orquestração de Multi-Export pronta!\n\n${data.manifest.total_exports_planned} arquivos agendados:\n` + data.manifest.export_tasks.map(t => `• ${t.name} -> ${t.output_file}`).join('\n'));
+          fecharMultiExportModal();
+        } else {
+          alert('Erro: ' + (data.error || 'Falha na exportação'));
+        }
+      } catch (e) {
+        alert('Erro ao exportar: ' + e.message);
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -2051,6 +2289,71 @@ O Segredo do Foco Profundo</textarea>
       </div>
       <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
         <button class="btn btn-secondary" onclick="fecharTemplatesModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Ducking & Punch-In -->
+  <div id="ducking-punch-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎙️ Sidechain Ducking Dinâmico & Punch-Ins</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharDuckingPunchModal()">&times;</button>
+      </div>
+      <div id="ducking-punch-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDuckingPunchModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Curva de Retenção & Heatmap -->
+  <div id="retention-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📊 Auditoria de Retenção Visual & Preditor do YouTube</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharRetentionModal()">&times;</button>
+      </div>
+      <div id="retention-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharRetentionModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Color Matcher de Acervos -->
+  <div id="color-matcher-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:740px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎨 Color Matcher & Harmonização Cromática 5600K</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharColorMatcherModal()">&times;</button>
+      </div>
+      <div id="color-matcher-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharColorMatcherModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Multi-Export Simultâneo -->
+  <div id="multiexport-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📱 Multi-Export Simultâneo Multiplataforma</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharMultiExportModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1;">
+        <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">
+          Selecione as redes para gerar versões otimizadas simultâneas (proporção, safe zone e LUFS calibrados):
+        </div>
+        <div id="multiexport-presets-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharMultiExportModal()">Cancelar</button>
+        <button class="btn" style="background:#2563eb; color:#fff; font-weight:700;" onclick="executarMultiExport()">🚀 Exportar em Lote para Redes</button>
       </div>
     </div>
   </div>
@@ -2539,6 +2842,36 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 t.setdefault("camera_style", "Cinemático Ken Burns" if t["id"] != "business_tech" else "Estático / Minimal")
                 t.setdefault("transition_type", t.get("transition_kind", "fade"))
             return self.send_json({"ok": True, "templates": templates})
+        elif self.path.startswith("/api/ducking/plan"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            duck_plan = DynamicZoomPunchAudioDuckingDirector.plan_ducking_and_punchins(plan)
+            return self.send_json({"ok": True, "plan": duck_plan})
+        elif self.path.startswith("/api/retention/audit"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            audit_res = VisualRetentionHeatmapAuditor.audit_retention_curve(plan)
+            return self.send_json({"ok": True, "result": audit_res})
+        elif self.path.startswith("/api/color/harmonize"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            color_res = SmartLutCinematicColorMatcher.harmonize_project_colors(plan)
+            return self.send_json({"ok": True, "result": color_res})
+        elif self.path.startswith("/api/multiexport/presets"):
+            presets = SocialMediaMultiExportPresets.list_presets()
+            return self.send_json({"ok": True, "presets": presets})
         else:
             self.send_response(404)
             self.end_headers()
@@ -3527,6 +3860,22 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "project_id": proj_id,
                 "ffmpeg_filter": filt
             })
+        elif self.path == "/api/retention/remediate":
+            proj_id = data.get("project_id")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            res = VisualRetentionHeatmapAuditor.auto_remediate_plan_pacing(plan)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **res})
+        elif self.path == "/api/multiexport/render":
+            proj_id = data.get("project_id")
+            selected = data.get("presets", [])
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            manifest = SocialMediaMultiExportPresets.build_export_manifest(plan, selected_ids=selected)
+            return self.send_json({"ok": True, "manifest": manifest})
         else:
             self.send_response(404)
             self.end_headers()

@@ -67,6 +67,10 @@
 - **Diretor de Câmera Inteligente Ken Burns (`SmartSceneKenBurnsDirector`):** Analisa a semântica de cada cena e calcula expressões matemáticas FFmpeg `zoompan` para movimentos dinâmicos como aproximação em rostos (slow face zoom-in), panorâmica horizontal (pan) e recuo cósmico (pull-out).
 - **Motor de Marca D'água & Lower-Third Intro (`VideoWatermarkBrandingEngine`):** Injeta logotipo translúcido com posicionamento flexível e anima uma faixa profissional de apresentação (lower-third) nos primeiros 5 segundos para autoridade de canal.
 - **Templates de Canal em 1-Clique (`OneClickPresetVideoTemplates`):** Padronização instantânea com perfis de canal prontos (Cosmos/Sci-Fi 16:9, Documentário Histórico 16:9, Viral Shorts 9:16 e Negócios/Tech 16:9) sincronizando gradação de cor, tipografia de legendas, BGM e proporção de tela.
+- **Sidechain Ducking & Punch-In Dinâmico por Voz (`DynamicZoomPunchAudioDuckingDirector`):** Atenua suavemente a trilha musical em -14dB durante as falas e detecta momentos de ênfase vocal para disparar micro cortes de aproximação de câmera (*punch-in* 1.12x de 0.35s).
+- **Auditor de Retenção Visual & Preditor de Curva do YouTube (`VisualRetentionHeatmapAuditor`):** Mapeia a timeline segundo a segundo para localizar zonas mortas com cenas estáticas acima de 3.2s e oferece auto-remediação em 1 clique para evitar queda de audiência.
+- **Color Matcher Cinematográfico de Acervos (`SmartLutCinematicColorMatcher`):** Harmoniza balanço de branco, saturação e temperatura de cor (5600K Daylight) entre clipes de 75 acervos heterogêneos (NASA, Wikimedia, Pexels, Museus).
+- **Exportador Multiplataforma Simultâneo (`SocialMediaMultiExportPresets`):** Gera com um clique os pacotes de renderização ideais para YouTube Widescreen 16:9, Shorts/TikTok 9:16 vertical, Feed/LinkedIn 1:1 quadrado e Podcast MP3 (-16 LUFS).
 
 ---
 </div>

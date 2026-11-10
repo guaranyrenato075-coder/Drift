@@ -252,6 +252,10 @@ def audit_system():
         "editing.smart_ken_burns_director",
         "editing.watermark_branding_engine",
         "pipeline.preset_video_templates",
+        "audio.dynamic_ducking_punch_director",
+        "analysis.retention_heatmap_auditor",
+        "editing.smart_color_matcher",
+        "pipeline.multi_export_orchestrator",
     ]
 
     for mod_name in modules_to_test:
