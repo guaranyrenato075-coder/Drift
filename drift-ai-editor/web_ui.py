@@ -102,6 +102,10 @@ from editing.dynamic_subtitles_word_highlighter import DynamicSubtitlesWordHighl
 from editing.smart_visual_pacing_bpm_aligner import SmartVisualPacingBPMAligner
 from analysis.narrative_tension_curve_auditor import NarrativeTensionCurveAuditor
 from pipeline.auto_video_watermark_branding_director import AutoVideoWatermarkBrandingDirector
+from editing.hdr_to_sdr_tone_mapper import HDRToSDRToneMapper
+from analysis.thumbnail_face_detector import AIAutomatedThumbnailFaceDetector
+from audio.soundtrack_auto_loop_stretcher import SoundtrackAutoLoopStretcher
+from pipeline.auto_social_cutpack_exporter import AutoSocialCutpackExporter
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -364,6 +368,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirBPMAlignerModal()">🎵 Alinhador de Cortes por BPM</button>
       <button class="btn btn-secondary" style="border-color:#f43f5e; color:#ffe4e6; font-weight:600;" onclick="abrirTensionCurveModal()">📈 Curva de Tensão (3 Atos)</button>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirWatermarkModal()">🛡️ Marca d'Água & Anti-Pirataria</button>
+      <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fef3c7; font-weight:600;" onclick="abrirHDRToneMapModal()">🎨 Tone Mapping HDR ➔ SDR</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#e0f2fe; font-weight:600;" onclick="abrirFaceDetectorModal()">👤 Foco Facial em Miniaturas</button>
+      <button class="btn btn-secondary" style="border-color:#a855f7; color:#f5d0fe; font-weight:600;" onclick="abrirSoundtrackLoopModal()">🔁 Loop Infinito de Trilha</button>
+      <button class="btn btn-secondary" style="border-color:#06b6d4; color:#cffafe; font-weight:600;" onclick="abrirCutpackModal()">📦 Exportador de Cutpack Social</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -3446,6 +3454,186 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao aplicar marca d\'água: ' + e.message);
       }
     }
+
+    async function abrirHDRToneMapModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('hdr-tonemap-modal');
+      const listEl = document.getElementById('hdr-tonemap-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Carregando algoritmos de Tone Mapping HDR Rec.709...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch('/api/hdr/presets');
+        const data = await res.json();
+        if (data.ok && data.presets) {
+          let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
+          for (const [key, p] of Object.entries(data.presets)) {
+            html += `
+              <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                  <div style="font-weight:700; color:#fef3c7; font-size:0.95rem;">${p.name}</div>
+                  <div style="font-size:0.82rem; color:var(--text-muted); margin-top:3px;">${p.description}</div>
+                  <div style="font-size:0.75rem; color:#f59e0b; margin-top:4px; font-family:monospace;">Curva: ${p.tonemap} | Desaturação: ${p.desat} | Pico NPL: ${p.peak}</div>
+                </div>
+                <button class="btn" style="background:#f59e0b; color:#0f172a; font-weight:700; margin-left:12px;" onclick="aplicarHDRPreset('${key}')">Aplicar</button>
+              </div>
+            `;
+          }
+          html += '</div>';
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro ao carregar HDR presets: ${e.message}</div>`;
+      }
+    }
+    function fecharHDRToneMapModal() {
+      document.getElementById('hdr-tonemap-modal').style.display = 'none';
+    }
+    async function aplicarHDRPreset(presetKey) {
+      if (!currentPlan) return;
+      showStatus('Configurando tone mapping HDR Rec.709...', '#f59e0b');
+      try {
+        const res = await fetch('/api/hdr/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, preset: presetKey })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Tone mapping ${presetKey} aplicado com sucesso!`, '#10b981');
+          alert(`Sucesso!\n\nAlgoritmo de Tone Mapping "${presetKey}" configurado no renderizador zscale para compatibilidade universal SDR Rec.709.`);
+          fecharHDRToneMapModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar: ' + e.message);
+      }
+    }
+
+    async function abrirFaceDetectorModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('face-detector-modal');
+      const listEl = document.getElementById('face-detector-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Detectando expressões faciais de alto CTR e alinhando aos terços...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/thumbnail/face/detect?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.faces) {
+          const f = data.faces;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; color:#38bdf8;">Enquadramento de Miniatura:</span>
+              <span style="font-weight:800; color:#e0f2fe;">${f.framing_standard}</span>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Melhores Momentos Faciais para Thumbnail (${f.top_thumbnail_candidates.length}):</div>
+          `;
+          f.top_thumbnail_candidates.forEach(c => {
+            html += `
+              <div style="background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.92rem; color:#e0f2fe;">
+                  <span>Candidato #${c.candidate_index} — Cena #${c.scene_index} (Aos ${c.timestamp}s)</span>
+                  <span style="color:#38bdf8;">Expressão: ${c.expression_type.toUpperCase()} (${c.ctr_expressiveness_score}% CTR)</span>
+                </div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">
+                  Âncora: <b>${c.rule_of_thirds_anchor === 'right_third' ? 'Terço Direito' : 'Terço Esquerdo'}</b> (deixa espaço livre para título)
+                </div>
+                <div style="font-size:0.75rem; color:#bae6fd; font-family:monospace; margin-top:4px;">
+                  Filtro Crop: ${c.suggested_crop_filter} | Contraste: ${c.contrast_boost_filter}
+                </div>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro ao detectar rostos: ${e.message}</div>`;
+      }
+    }
+    function fecharFaceDetectorModal() {
+      document.getElementById('face-detector-modal').style.display = 'none';
+    }
+
+    async function abrirSoundtrackLoopModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('soundtrack-loop-modal');
+      modal.style.display = 'flex';
+      aplicarLoopStretcher();
+    }
+    function fecharSoundtrackLoopModal() {
+      document.getElementById('soundtrack-loop-modal').style.display = 'none';
+    }
+    async function aplicarLoopStretcher() {
+      const musicDur = document.getElementById('music-dur-input') ? document.getElementById('music-dur-input').value : '90';
+      const crossVal = document.getElementById('music-cross-input') ? document.getElementById('music-cross-input').value : '3.0';
+      const contentEl = document.getElementById('soundtrack-loop-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Calculando loops perfeitos sem cortes bruscos...</div>';
+
+      try {
+        const res = await fetch(`/api/soundtrack/loop/calculate?project_id=${currentPlan.project_id}&music_duration=${musicDur}&crossfade=${crossVal}`);
+        const data = await res.json();
+        if (data.ok && data.loop_plan) {
+          const lp = data.loop_plan;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; font-weight:700; color:#a855f7;">
+                <span>Duração do Vídeo: ${lp.video_duration}s</span>
+                <span>Duração da Música: ${lp.soundtrack_duration}s</span>
+              </div>
+              <div style="font-size:0.85rem; color:#f5d0fe; margin-top:6px;">
+                ${lp.needs_loop ? `🔁 Necessário <b>${lp.loops_required} loops</b> com <b>${lp.seamless_transitions_count} transições acrossfade (${lp.crossfade_seconds}s)</b>.` : '✨ A música cobre todo o vídeo sem necessidade de loop!'}
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:6px; color:var(--text-main);">Filtro de Áudio FFmpeg Gerado:</div>
+            <textarea readonly style="width:100%; height:75px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#f5d0fe; font-size:0.78rem; padding:8px; font-family:monospace; resize:none;">${lp.ffmpeg_filter}</textarea>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular loop: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirCutpackModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('cutpack-modal');
+      const listEl = document.getElementById('cutpack-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Gerando matriz de entregáveis multiformato para redes sociais...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/cutpack/plan?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.cutpack) {
+          const cp = data.cutpack;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; color:#06b6d4;">Matriz Transmídia:</span>
+              <span style="font-weight:800; color:#cffafe;">${cp.total_cutpack_deliverables} formatos prontos para render em lote</span>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Entregáveis Otimizados por Rede Social:</div>
+          `;
+          cp.jobs.forEach(j => {
+            html += `
+              <div style="background:rgba(6,182,212,0.06); border:1px solid rgba(6,182,212,0.25); border-radius:6px; padding:10px 12px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; color:#cffafe;">
+                  <span>${j.platform} (${j.aspect_ratio})</span>
+                  <span style="color:#06b6d4;">${j.resolution} — ${j.duration_seconds}s</span>
+                </div>
+                <div style="font-size:0.75rem; color:#94a3b8; font-family:monospace; margin-top:4px;">
+                  Arquivo: ${j.target_filename}
+                </div>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro ao gerar cutpack: ${e.message}</div>`;
+      }
+    }
+    function fecharCutpackModal() {
+      document.getElementById('cutpack-modal').style.display = 'none';
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -4304,6 +4492,73 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Tone Mapping HDR Rec.709 -->
+  <div id="hdr-tonemap-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎨 Tone Mapping HDR / Log ➔ SDR Rec.709</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharHDRToneMapModal()">&times;</button>
+      </div>
+      <div id="hdr-tonemap-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharHDRToneMapModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Foco Facial em Miniaturas -->
+  <div id="face-detector-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">👤 Detector de Expressões Faciais & Crop Regra dos Terços</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharFaceDetectorModal()">&times;</button>
+      </div>
+      <div id="face-detector-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharFaceDetectorModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Loop Infinito de Trilha -->
+  <div id="soundtrack-loop-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🔁 Extensor e Loop Infinito de Trilha Sonora</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharSoundtrackLoopModal()">&times;</button>
+      </div>
+      <div style="padding:14px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); display:flex; gap:16px; align-items:center;">
+        <div>
+          <label style="font-size:0.8rem; color:var(--text-muted);">Duração da Música (s):</label>
+          <input type="number" id="music-dur-input" value="90" style="width:80px; padding:6px; background:#0f172a; border:1px solid var(--border); border-radius:4px; color:#fff; font-size:0.85rem;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem; color:var(--text-muted);">Crossfade Suave (s):</label>
+          <input type="number" step="0.5" id="music-cross-input" value="3.0" style="width:70px; padding:6px; background:#0f172a; border:1px solid var(--border); border-radius:4px; color:#fff; font-size:0.85rem;">
+        </div>
+        <button class="btn" style="background:#a855f7; color:#fff; font-weight:700; margin-top:16px;" onclick="aplicarLoopStretcher()">Recalcular Loops</button>
+      </div>
+      <div id="soundtrack-loop-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharSoundtrackLoopModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Exportador de Cutpack Social -->
+  <div id="cutpack-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📦 Exportador de Cutpack Social Omnichannel</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharCutpackModal()">&times;</button>
+      </div>
+      <div id="cutpack-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharCutpackModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -5039,6 +5294,38 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
         elif self.path.startswith("/api/watermark/positions"):
             corners = AutoVideoWatermarkBrandingDirector.get_corner_positions()
             return self.send_json({"ok": True, "positions": corners})
+        elif self.path.startswith("/api/hdr/presets"):
+            presets = HDRToSDRToneMapper.get_available_presets()
+            return self.send_json({"ok": True, "presets": presets})
+        elif self.path.startswith("/api/thumbnail/face/detect"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            face_data = AIAutomatedThumbnailFaceDetector.detect_thumbnail_face_candidates(plan)
+            return self.send_json({"ok": True, "faces": face_data})
+        elif self.path.startswith("/api/soundtrack/loop/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            music_dur = float(params.get("music_duration", [90.0])[0])
+            crossfade = float(params.get("crossfade", [3.0])[0])
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            loop_data = SoundtrackAutoLoopStretcher.stretch_plan_soundtrack(plan, soundtrack_duration_seconds=music_dur, crossfade_seconds=crossfade)
+            return self.send_json({"ok": True, "loop_plan": loop_data})
+        elif self.path.startswith("/api/cutpack/plan"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            cutpack_data = AutoSocialCutpackExporter.generate_cutpack_render_plan(plan)
+            return self.send_json({"ok": True, "cutpack": cutpack_data})
         else:
             self.send_response(404)
             self.end_headers()
@@ -6129,6 +6416,15 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             wm_res = AutoVideoWatermarkBrandingDirector.apply_watermark_to_plan(plan, wm_path, position, opacity)
             self.repo.save(plan)
             return self.send_json({"ok": True, **wm_res})
+        elif self.path == "/api/hdr/apply":
+            proj_id = data.get("project_id")
+            preset_name = data.get("preset", "mobius_balanced")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            hdr_res = HDRToSDRToneMapper.apply_tone_mapping_to_plan(plan, preset_name)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **hdr_res})
         else:
             self.send_response(404)
             self.end_headers()

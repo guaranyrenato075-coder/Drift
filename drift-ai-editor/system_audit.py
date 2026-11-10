@@ -284,6 +284,10 @@ def audit_system():
         "editing.smart_visual_pacing_bpm_aligner",
         "analysis.narrative_tension_curve_auditor",
         "pipeline.auto_video_watermark_branding_director",
+        "editing.hdr_to_sdr_tone_mapper",
+        "analysis.thumbnail_face_detector",
+        "audio.soundtrack_auto_loop_stretcher",
+        "pipeline.auto_social_cutpack_exporter",
     ]
 
     for mod_name in modules_to_test:
