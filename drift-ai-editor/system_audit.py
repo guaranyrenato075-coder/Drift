@@ -268,6 +268,10 @@ def audit_system():
         "editing.end_screen_card_director",
         "audio.loudness_broadcast_normalizer",
         "analysis.vocabulary_hook_auditor",
+        "editing.dynamic_broll_pacer",
+        "audio.sound_design_foley_director",
+        "editing.color_film_stock_emulator",
+        "pipeline.ctr_metadata_seo_optimizer",
     ]
 
     for mod_name in modules_to_test:

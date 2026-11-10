@@ -86,6 +86,10 @@ from audio.spatial_audio_panner import BinauralSpatialAudioPanner
 from editing.end_screen_card_director import AIAutomatedEndScreenCardDirector
 from audio.loudness_broadcast_normalizer import SmartLoudnessBroadcastNormalizer
 from analysis.vocabulary_hook_auditor import ViralHookVocabularyAuditor
+from editing.dynamic_broll_pacer import DynamicBrollPacer
+from audio.sound_design_foley_director import SoundDesignFoleyAutoDirector
+from editing.color_film_stock_emulator import AutoColorToneFilmStockEmulator
+from pipeline.ctr_metadata_seo_optimizer import CTRMetadataSEOOptimizer
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -332,6 +336,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fde68a; font-weight:600;" onclick="abrirEndScreenModal()">🎬 Telas Finais YouTube (End-Screen)</button>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0; font-weight:600;" onclick="abrirLoudnessModal()">🎚️ Normalizador -14 LUFS (EBU R128)</button>
       <button class="btn" style="background:#7c3aed; color:#fff; font-weight:700;" onclick="abrirVocabularyModal()">🧠 Auditor Neuro-Linguístico</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#bae6fd; font-weight:600;" onclick="abrirBrollPacerModal()">🎞️ Cadência Dinâmica B-Roll</button>
+      <button class="btn btn-secondary" style="border-color:#ec4899; color:#fbcfe8; font-weight:600;" onclick="abrirFoleyModal()">🔊 Sound Design & Foley</button>
+      <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirFilmStockModal()">📽️ Emulador de Película 35mm</button>
+      <button class="btn btn-secondary" style="border-color:#14b8a6; color:#99f6e4; font-weight:600;" onclick="abrirCTROptimizerModal()">📈 Metadados SEO & Títulos CTR</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -2596,6 +2604,241 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao aprimorar: ' + e.message);
       }
     }
+
+    async function abrirBrollPacerModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('broll-pacer-modal');
+      const listEl = document.getElementById('broll-pacer-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Analisando cadência de B-rolls e risco de fadiga visual...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/broll/pacing?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.pacing) {
+          const p = data.pacing;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#38bdf8;">Nota de Pacing Visual:</span>
+                <span style="font-weight:800; color:${p.fatigue_risk === 'LOW' ? '#10b981' : p.fatigue_risk === 'MODERATE' ? '#f59e0b' : '#ef4444'};">${p.pacing_grade}</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">
+                Cenas analisadas: ${p.total_scenes} | Riscos de estagnação: ${p.static_risk_count} | Limiar: ${p.max_static_threshold}s
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Pontos Recomendados para Inserção de B-Roll:</div>
+          `;
+          if (p.recommendations.length === 0) {
+            html += '<div style="color:#10b981; padding:12px; text-align:center;">✨ Excelente! Não há cenas longas com risco de fadiga visual.</div>';
+          } else {
+            p.recommendations.forEach(r => {
+              html += `
+                <div style="background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:10px; margin-bottom:8px;">
+                  <div style="display:flex; justify-content:space-between; font-weight:600; font-size:0.88rem; color:#bae6fd;">
+                    <span>Cena #${r.scene_index} (Aos ${r.insert_time}s)</span>
+                    <span style="color:#38bdf8;">Duração: ${r.duration}s</span>
+                  </div>
+                  <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">${r.reason}</div>
+                  <div style="font-size:0.82rem; color:#fde68a; margin-top:4px;">🔍 Sugestão de busca B-Roll: <b>"${r.suggested_query}"</b></div>
+                </div>
+              `;
+            });
+          }
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao carregar pacing: ${data.error || 'Desconhecido'}</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharBrollPacerModal() {
+      document.getElementById('broll-pacer-modal').style.display = 'none';
+    }
+    async function aplicarBrollSlotsAuto() {
+      if (!currentPlan) return;
+      showStatus('Inserindo pontos de corte para B-roll na timeline...', '#38bdf8');
+      try {
+        const res = await fetch('/api/broll/insert_slots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`B-Roll Slots criados com sucesso! ${data.slots_created} marcações aplicadas.`, '#10b981');
+          alert(`Sucesso!\n\n${data.slots_created} slots automáticos de B-roll foram adicionados para manter a retenção máxima.`);
+          fecharBrollPacerModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar: ' + e.message);
+      }
+    }
+
+    async function abrirFoleyModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('foley-modal');
+      const listEl = document.getElementById('foley-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Varrendo timeline para orquestrar Sound Design e Foley...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/audio/foley?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.foley) {
+          const f = data.foley;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#ec4899;">Densidade de Foley:</span>
+                <span style="font-weight:800; color:#fbcfe8;">${f.sound_density} cues / min</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">${f.mix_guideline}</div>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Trilha de SFX Sincronizada (${f.total_cues} eventos):</div>
+          `;
+          f.cues.forEach(c => {
+            html += `
+              <div style="background:rgba(236,72,153,0.06); border:1px solid rgba(236,72,153,0.25); border-radius:6px; padding:10px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; font-weight:600; font-size:0.88rem; color:#fbcfe8;">
+                  <span>⏱️ ${c.timestamp}s — ${c.sample}</span>
+                  <span style="color:#ec4899;">${c.volume_db} dB</span>
+                </div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">${c.description} (Categoria: ${c.category})</div>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao carregar foley: ${data.error || 'Desconhecido'}</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharFoleyModal() {
+      document.getElementById('foley-modal').style.display = 'none';
+    }
+
+    async function abrirFilmStockModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('film-stock-modal');
+      const listEl = document.getElementById('film-stock-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Carregando perfis analógicos de película...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch('/api/film_stock/list');
+        const data = await res.json();
+        if (data.ok && data.stocks) {
+          let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
+          for (const [key, stock] of Object.entries(data.stocks)) {
+            html += `
+              <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                  <div style="font-weight:700; color:#fef08a; font-size:0.95rem;">${stock.name}</div>
+                  <div style="font-size:0.82rem; color:var(--text-muted); margin-top:3px;">${stock.description}</div>
+                  <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px; font-family:monospace;">Granulação: ${stock.grain_default} | Contraste: ${stock.contrast}x | Saturação: ${stock.saturation}x</div>
+                </div>
+                <button class="btn" style="background:#eab308; color:#000; font-weight:700; margin-left:12px;" onclick="aplicarFilmStockSelecionado('${key}')">Aplicar</button>
+              </div>
+            `;
+          }
+          html += '</div>';
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao carregar películas.</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharFilmStockModal() {
+      document.getElementById('film-stock-modal').style.display = 'none';
+    }
+    async function aplicarFilmStockSelecionado(stockKey) {
+      if (!currentPlan) return;
+      showStatus('Aplicando perfil de película e curvas FFmpeg...', '#eab308');
+      try {
+        const res = await fetch('/api/film_stock/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, film_stock: stockKey })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Película ${stockKey} aplicada com sucesso!`, '#10b981');
+          alert(`Sucesso!\n\nPerfil de película "${stockKey}" aplicado ao projeto com filtros estocásticos de granulação e curvas analógicas.`);
+          fecharFilmStockModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar: ' + e.message);
+      }
+    }
+
+    async function abrirCTROptimizerModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('ctr-optimizer-modal');
+      const contentEl = document.getElementById('ctr-optimizer-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Gerando títulos de alto CTR, tags SEO e descrição estruturada...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/metadata/seo?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.metadata) {
+          const m = data.metadata;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#14b8a6;">Potencial Estimado de CTR:</span>
+                <span style="font-weight:800; color:#99f6e4;">${m.ctr_potential_index} (SEO Score: ${m.seo_score}/100)</span>
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">5 Títulos com Fórmulas Psicológicas de CTR:</div>
+          `;
+          m.title_variants.forEach(tv => {
+            html += `
+              <div style="background:rgba(20,184,166,0.06); border:1px solid rgba(20,184,166,0.25); border-radius:6px; padding:10px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.9rem; color:#99f6e4;">
+                  <span>"${tv.title}"</span>
+                  <span style="color:#14b8a6;">CTR: ${tv.ctr_potential}</span>
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Gatilho: ${tv.formula}</div>
+              </div>
+            `;
+          });
+          html += `
+            <div style="font-weight:700; font-size:0.9rem; margin-top:12px; margin-bottom:8px; color:var(--text-main);">Descrição Pronta para YouTube Studio (Com Capítulos Automáticos):</div>
+            <textarea id="ctr-desc-text" readonly style="width:100%; height:130px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#e2e8f0; font-size:0.82rem; padding:10px; font-family:monospace; resize:none;">${m.structured_description}</textarea>
+            <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="copiarTextoDescricao()">📋 Copiar Descrição</button>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-top:12px; margin-bottom:8px; color:var(--text-main);">Tags SEO Recomendadas (${m.recommended_tags.length}):</div>
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:10px; font-size:0.82rem; color:#bae6fd;">
+              ${m.recommended_tags.join(', ')}
+            </div>
+          `;
+          contentEl.innerHTML = html;
+        } else {
+          contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao gerar SEO: ${data.error || 'Desconhecido'}</div>`;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharCTROptimizerModal() {
+      document.getElementById('ctr-optimizer-modal').style.display = 'none';
+    }
+    function copiarTextoDescricao() {
+      const el = document.getElementById('ctr-desc-text');
+      if (el) {
+        navigator.clipboard.writeText(el.value).then(() => {
+          alert('Descrição copiada para a área de transferência!');
+        });
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -3173,6 +3416,63 @@ O Segredo do Foco Profundo</textarea>
       <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
         <button class="btn" style="background:#7c3aed; color:#fff; font-weight:700;" onclick="aprimorarVocabularioAuto()">✨ Aprimorar Roteiro Automaticamente</button>
         <button class="btn btn-secondary" onclick="fecharVocabularyModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cadência Dinâmica B-Roll -->
+  <div id="broll-pacer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎞️ Cadência Dinâmica B-Roll & Prevenção de Fadiga Visual</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharBrollPacerModal()">&times;</button>
+      </div>
+      <div id="broll-pacer-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn" style="background:#38bdf8; color:#0f172a; font-weight:700;" onclick="aplicarBrollSlotsAuto()">✨ Inserir B-Roll Slots Automaticamente</button>
+        <button class="btn btn-secondary" onclick="fecharBrollPacerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Sound Design & Foley -->
+  <div id="foley-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🔊 Diretor de Sound Design & Foley Automático</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharFoleyModal()">&times;</button>
+      </div>
+      <div id="foley-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharFoleyModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Emulador de Película 35mm -->
+  <div id="film-stock-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📽️ Emulador de Película Analógica & Granulação Estocástica</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharFilmStockModal()">&times;</button>
+      </div>
+      <div id="film-stock-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharFilmStockModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Otimizador de Metadados SEO & CTR -->
+  <div id="ctr-optimizer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:780px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📈 Otimizador de Títulos CTR, Capítulos e Tags SEO</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharCTROptimizerModal()">&times;</button>
+      </div>
+      <div id="ctr-optimizer-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharCTROptimizerModal()">Fechar</button>
       </div>
     </div>
   </div>
@@ -3797,6 +4097,36 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
             audit_data = ViralHookVocabularyAuditor.audit_script_vocabulary(plan)
             return self.send_json({"ok": True, "audit": audit_data})
+        elif self.path.startswith("/api/broll/pacing"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            pacing_data = DynamicBrollPacer.calculate_broll_pacing(plan)
+            return self.send_json({"ok": True, "pacing": pacing_data})
+        elif self.path.startswith("/api/audio/foley"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            foley_data = SoundDesignFoleyAutoDirector.generate_foley_cues(plan)
+            return self.send_json({"ok": True, "foley": foley_data})
+        elif self.path.startswith("/api/film_stock/list"):
+            stocks = AutoColorToneFilmStockEmulator.get_available_film_stocks()
+            return self.send_json({"ok": True, "stocks": stocks})
+        elif self.path.startswith("/api/metadata/seo"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            seo_data = CTRMetadataSEOOptimizer.generate_metadata_package(plan)
+            return self.send_json({"ok": True, "metadata": seo_data})
         else:
             self.send_response(404)
             self.end_headers()
@@ -4835,6 +5165,24 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             enhance_data = ViralHookVocabularyAuditor.enhance_script_dialogue(plan)
             self.repo.save(plan)
             return self.send_json({"ok": True, **enhance_data})
+        elif self.path == "/api/broll/insert_slots":
+            proj_id = data.get("project_id")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            insert_res = DynamicBrollPacer.auto_insert_broll_slots(plan)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **insert_res})
+        elif self.path == "/api/film_stock/apply":
+            proj_id = data.get("project_id")
+            stock_name = data.get("film_stock", "kodak_vision3_5219")
+            grain_intensity = float(data.get("grain_intensity", 1.0))
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            film_res = AutoColorToneFilmStockEmulator.apply_film_stock_to_plan(plan, stock_name, grain_intensity)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **film_res})
         else:
             self.send_response(404)
             self.end_headers()
