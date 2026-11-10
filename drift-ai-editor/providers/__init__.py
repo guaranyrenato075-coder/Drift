@@ -69,6 +69,11 @@ from .magdeleine import MagdeleineProvider
 from .wp_photos import WpPhotosProvider
 from .goodfreephotos import GoodFreePhotosProvider
 from .jay_mantri import JayMantriProvider
+from .harvard_art import HarvardArtProvider
+from .aapb import AapbProvider
+from .te_papa import TePapaProvider
+from .mia import MiaProvider
+from .barnimages import BarnimagesProvider
 
 __all__ = [
     "BaseMediaProvider",
@@ -141,5 +146,10 @@ __all__ = [
     "MagdeleineProvider",
     "WpPhotosProvider",
     "GoodFreePhotosProvider",
-    "JayMantriProvider"
+    "JayMantriProvider",
+    "HarvardArtProvider",
+    "AapbProvider",
+    "TePapaProvider",
+    "MiaProvider",
+    "BarnimagesProvider"
 ]

@@ -225,6 +225,11 @@ def audit_system():
         "providers.wp_photos",
         "providers.goodfreephotos",
         "providers.jay_mantri",
+        "providers.harvard_art",
+        "providers.aapb",
+        "providers.te_papa",
+        "providers.mia",
+        "providers.barnimages",
     ]
 
     for mod_name in modules_to_test:
@@ -267,7 +272,7 @@ def audit_system():
     # -------------------------------------------------------------
     # 3. VERIFICAÇÃO DE PROVEDORES DE MÍDIA
     # -------------------------------------------------------------
-    print("\n[3/5] Auditando conformidade dos 70 provedores de mídia...")
+    print("\n[3/5] Auditando conformidade dos 75 provedores de mídia...")
     from providers import (
         PexelsProvider,
         PixabayProvider,
@@ -339,6 +344,11 @@ def audit_system():
         WpPhotosProvider,
         GoodFreePhotosProvider,
         JayMantriProvider,
+        HarvardArtProvider,
+        AapbProvider,
+        TePapaProvider,
+        MiaProvider,
+        BarnimagesProvider,
         BaseMediaProvider
     )
     providers = [
@@ -411,7 +421,12 @@ def audit_system():
         MagdeleineProvider(),
         WpPhotosProvider(),
         GoodFreePhotosProvider(),
-        JayMantriProvider()
+        JayMantriProvider(),
+        HarvardArtProvider(),
+        AapbProvider(),
+        TePapaProvider(),
+        MiaProvider(),
+        BarnimagesProvider()
     ]
     for p in providers:
         if not isinstance(p, BaseMediaProvider):

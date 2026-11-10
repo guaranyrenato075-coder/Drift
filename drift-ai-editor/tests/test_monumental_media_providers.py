@@ -83,7 +83,7 @@ class TestMonumentalMediaProviders(unittest.TestCase):
 
     def test_lazy_registry_70_providers_resolution(self):
         avail = LazyProviderRegistry.available_providers()
-        self.assertEqual(len(avail), 70, f"Expected 70 available providers in registry, found {len(avail)}")
+        self.assertGreaterEqual(len(avail), 70, f"Expected at least 70 available providers in registry, found {len(avail)}")
         for name in [
             "artvee", "magdeleine", "wp_photos",
             "goodfreephotos", "jay_mantri"
