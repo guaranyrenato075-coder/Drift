@@ -94,6 +94,10 @@ from audio.voice_denoise_spectral_isolator import AIVoiceDenoiseSpectralIsolator
 from editing.smart_scene_transition_director import SmartSceneTransitionDirector
 from pipeline.youtube_shorts_repurposer import YouTubeShortsRepurposer
 from core.render_crash_recovery_guard import AutoRenderCrashRecoveryGuard
+from pipeline.video_bitrate_bandwidth_optimizer import VideoBitrateBandwidthOptimizer
+from analysis.visual_artifact_glitch_detector import VisualArtifactGlitchDetector
+from audio.soundfx_doppler_pan_automator import SoundFXDopplerPanAutomator
+from analysis.audience_dropoff_predictor import AudienceDropoffPredictor
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -348,6 +352,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#f97316; color:#ffedd5; font-weight:600;" onclick="abrirTransitionsModal()">🔀 Transições Cinemáticas (IA)</button>
       <button class="btn btn-secondary" style="border-color:#e11d48; color:#ffe4e6; font-weight:600;" onclick="abrirShortsModal()">📱 Repurpose Shorts 9:16</button>
       <button class="btn btn-secondary" style="border-color:#22c55e; color:#bbf7d0; font-weight:600;" onclick="abrirRecoveryModal()">🛡️ Checkpoint & Crash Recovery</button>
+      <button class="btn btn-secondary" style="border-color:#3b82f6; color:#bfdbfe; font-weight:600;" onclick="abrirBitrateModal()">🚀 Otimizador Bitrate & Compressão</button>
+      <button class="btn btn-secondary" style="border-color:#a855f7; color:#f3e8ff; font-weight:600;" onclick="abrirQCModal()">🔍 Controle de Qualidade (QC Vídeo)</button>
+      <button class="btn btn-secondary" style="border-color:#06b6d4; color:#cffafe; font-weight:600;" onclick="abrirDopplerModal()">🏎️ Áudio Doppler 3D (SFX)</button>
+      <button class="btn btn-secondary" style="border-color:#eab308; color:#fef9c3; font-weight:600;" onclick="abrirDropoffModal()">📉 Preditor de Abandono (Drop-Off)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -3062,6 +3070,200 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao limpar checkpoint: ' + e.message);
       }
     }
+
+    async function abrirBitrateModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('bitrate-modal');
+      const listEl = document.getElementById('bitrate-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Calculando taxas ideais de compressão e largura de banda...</div>';
+      modal.style.display = 'flex';
+      calcularBitrateCustom('youtube_1080p_pro');
+    }
+    function fecharBitrateModal() {
+      document.getElementById('bitrate-modal').style.display = 'none';
+    }
+    async function calcularBitrateCustom(profileKey) {
+      const listEl = document.getElementById('bitrate-list');
+      try {
+        const res = await fetch(`/api/bitrate/calculate?project_id=${currentPlan.project_id}&profile=${profileKey}`);
+        const data = await res.json();
+        if (data.ok && data.bitrate_plan) {
+          const bp = data.bitrate_plan;
+          const p = bp.profile_details;
+          listEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#3b82f6; font-size:1rem;">Perfil Ativo: ${p.name}</span>
+                <span style="font-weight:800; color:#bfdbfe; font-size:1.1rem;">~${bp.estimated_file_size_mb} MB</span>
+              </div>
+              <div style="font-size:0.84rem; color:var(--text-muted); margin-top:4px;">${p.description}</div>
+              <div style="font-size:0.78rem; color:#93c5fd; margin-top:6px; font-family:monospace;">
+                Resolução: ${p.resolution} @ ${p.fps}fps | Alvo: ${p.target_bitrate_kbps}k | Max: ${p.max_bitrate_kbps}k | Codec: ${p.codec}
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Alternar Perfil de Compressão:</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="calcularBitrateCustom('youtube_1080p_pro')">YouTube 1080p Pro</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="calcularBitrateCustom('youtube_4k_ultra')">YouTube 4K Ultra</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="calcularBitrateCustom('web_fast_stream')">Web Fast Mobile</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="calcularBitrateCustom('archive_lossless_prores')">Master ProRes 422</button>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:6px; color:var(--text-main);">Cadeia de Argumentos FFmpeg Gerada:</div>
+            <textarea readonly style="width:100%; height:80px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#93c5fd; font-size:0.8rem; padding:8px; font-family:monospace; resize:none;">${bp.ffmpeg_compression_args}</textarea>
+          `;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular bitrate.</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirQCModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('qc-modal');
+      const listEl = document.getElementById('qc-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Executando auditoria QC (Quality Control) pré-render...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/video/qc?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.qc) {
+          const qc = data.qc;
+          const statusColor = qc.qc_score >= 90 ? '#10b981' : (qc.qc_score >= 70 ? '#f59e0b' : '#ef4444');
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:700; color:#a855f7; font-size:0.95rem;">Auditoria de Conformidade Broadcast</div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">${qc.broadcast_standards} | Cenas inspecionadas: ${qc.total_scenes_checked}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:800; font-size:1.2rem; color:${statusColor};">${qc.qc_score}/100</div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">${qc.qc_status}</div>
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Anomalias e Riscos Detectados (${qc.anomalies_found}):</div>
+          `;
+          if (qc.anomalies.length === 0) {
+            html += '<div style="color:#10b981; padding:16px; text-align:center;">✨ Nenhum risco de quadro preto, congelamento ou flicker detectado! Vídeo 100% íntegro para broadcast.</div>';
+          } else {
+            qc.anomalies.forEach(a => {
+              const borderCol = a.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b';
+              html += `
+                <div style="background:rgba(168,85,247,0.06); border-left:4px solid ${borderCol}; border-radius:4px; padding:10px; margin-bottom:8px;">
+                  <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; color:#f3e8ff;">
+                    <span>Cena #${a.scene_index} (Aos ${a.timestamp}s) — ${a.type}</span>
+                    <span style="color:${borderCol}; font-size:0.78rem;">[${a.severity}]</span>
+                  </div>
+                  <div style="font-size:0.82rem; color:var(--text-muted); margin-top:3px;">${a.description}</div>
+                </div>
+              `;
+            });
+          }
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao executar QC.</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharQCModal() {
+      document.getElementById('qc-modal').style.display = 'none';
+    }
+
+    async function abrirDopplerModal() {
+      const modal = document.getElementById('doppler-modal');
+      modal.style.display = 'flex';
+      calcularDopplerCustom();
+    }
+    function fecharDopplerModal() {
+      document.getElementById('doppler-modal').style.display = 'none';
+    }
+    async function calcularDopplerCustom() {
+      const spd = document.getElementById('doppler-speed') ? document.getElementById('doppler-speed').value : '140';
+      const dir = document.getElementById('doppler-dir') ? document.getElementById('doppler-dir').value : 'left_to_right';
+      const contentEl = document.getElementById('doppler-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:10px;">Calculando física acústica Doppler 3D...</div>';
+
+      try {
+        const res = await fetch(`/api/audio/doppler/calculate?speed=${spd}&direction=${dir}`);
+        const data = await res.json();
+        if (data.ok && data.doppler) {
+          const d = data.doppler;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; font-weight:700; color:#06b6d4;">
+                <span>Variação de Pitch de Aproximação:</span>
+                <span style="color:#cffafe;">+${Math.round((d.approach_pitch_ratio - 1) * 100)}% (${d.approach_pitch_ratio}x)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-weight:700; color:#06b6d4; margin-top:4px;">
+                <span>Variação de Pitch de Afastamento:</span>
+                <span style="color:#cffafe;">-${Math.round((1 - d.recede_pitch_ratio) * 100)}% (${d.recede_pitch_ratio}x)</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">
+                Trajetória espacial: Pan de <b>${d.start_pan === -1 ? 'Esquerda' : 'Direita'}</b> para <b>${d.end_pan === 1 ? 'Direita' : 'Esquerda'}</b>.
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:6px; color:var(--text-main);">Filtro FFmpeg 3D Doppler:</div>
+            <textarea readonly style="width:100%; height:70px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#a5f3fc; font-size:0.8rem; padding:8px; font-family:monospace; resize:none;">${d.ffmpeg_filter}</textarea>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular Doppler: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirDropoffModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('dropoff-modal');
+      const listEl = document.getElementById('dropoff-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Modelando curva preditiva de abandono de audiência...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/audience/dropoff/predict?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.dropoff) {
+          const d = data.dropoff;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:700; color:#eab308; font-size:0.95rem;">Retenção Média Estimada</div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">Benchmark: ${d.benchmark_status} | Duração: ${d.total_duration}s</div>
+              </div>
+              <div style="font-weight:800; font-size:1.3rem; color:#fef9c3;">${d.predicted_average_retention}</div>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Pontos Críticos de Risco de Queda (${d.dropoff_risks_count}):</div>
+          `;
+          if (d.dropoff_hotspots.length === 0) {
+            html += '<div style="color:#10b981; padding:16px; text-align:center;">✨ Excelente! Roteiro dinâmico e sem zonas de tédio detectadas.</div>';
+          } else {
+            d.dropoff_hotspots.forEach(h => {
+              html += `
+                <div style="background:rgba(234,179,8,0.06); border:1px solid rgba(234,179,8,0.25); border-radius:6px; padding:10px; margin-bottom:8px;">
+                  <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; color:#fef9c3;">
+                    <span>⏱️ Aos ${h.timestamp}s (Cena #${h.scene_index})</span>
+                    <span style="color:#ef4444;">Risco de Abandono: ${h.risk_percent}%</span>
+                  </div>
+                  <div style="font-size:0.82rem; color:var(--text-muted); margin-top:3px;">Causa: ${h.cause}</div>
+                  <div style="font-size:0.82rem; color:#86efac; margin-top:4px;">💡 Solução Recomendada: <b>${h.remedy}</b></div>
+                </div>
+              `;
+            });
+          }
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao prever abandono.</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharDropoffModal() {
+      document.getElementById('dropoff-modal').style.display = 'none';
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -3755,6 +3957,76 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Otimizador de Bitrate & Compressão -->
+  <div id="bitrate-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🚀 Otimizador Preditivo de Bitrate & Compressão (VBR)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharBitrateModal()">&times;</button>
+      </div>
+      <div id="bitrate-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharBitrateModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Controle de Qualidade (QC Vídeo) -->
+  <div id="qc-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🔍 Auditoria QC & Detecção de Anomalias Visuais</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharQCModal()">&times;</button>
+      </div>
+      <div id="qc-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharQCModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Áudio Doppler 3D -->
+  <div id="doppler-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🏎️ Automação de Efeito Doppler & Pan Estéreo 3D</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharDopplerModal()">&times;</button>
+      </div>
+      <div style="padding:16px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); display:flex; gap:16px; align-items:center;">
+        <div>
+          <label style="font-size:0.8rem; color:var(--text-muted);">Velocidade (km/h):</label>
+          <input type="number" id="doppler-speed" value="140" style="width:90px; padding:6px; background:#0f172a; border:1px solid var(--border); border-radius:4px; color:#fff; font-size:0.85rem;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem; color:var(--text-muted);">Direção Espacial:</label>
+          <select id="doppler-dir" style="padding:6px; background:#0f172a; border:1px solid var(--border); border-radius:4px; color:#fff; font-size:0.85rem;">
+            <option value="left_to_right">Esquerda ➔ Direita</option>
+            <option value="right_to_left">Direita ➔ Esquerda</option>
+          </select>
+        </div>
+        <button class="btn" style="background:#06b6d4; color:#0f172a; font-weight:700; margin-top:16px;" onclick="calcularDopplerCustom()">Recalcular</button>
+      </div>
+      <div id="doppler-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDopplerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Preditor de Abandono (Drop-Off) -->
+  <div id="dropoff-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📉 Preditor de Abandono de Audiência (Drop-off Curve)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharDropoffModal()">&times;</button>
+      </div>
+      <div id="dropoff-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDropoffModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -4433,6 +4705,41 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             proj_id = params.get("project_id", [""])[0]
             rec_status = AutoRenderCrashRecoveryGuard.check_resumable_render(proj_id if proj_id else "default")
             return self.send_json({"ok": True, "status": rec_status})
+        elif self.path.startswith("/api/bitrate/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            profile_name = params.get("profile", ["youtube_1080p_pro"])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            bitrate_plan = VideoBitrateBandwidthOptimizer.calculate_project_bitrate_plan(plan, profile_name)
+            return self.send_json({"ok": True, "bitrate_plan": bitrate_plan})
+        elif self.path.startswith("/api/video/qc"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            qc_data = VisualArtifactGlitchDetector.audit_project_visual_qc(plan)
+            return self.send_json({"ok": True, "qc": qc_data})
+        elif self.path.startswith("/api/audio/doppler/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            spd = float(params.get("speed", [140.0])[0])
+            dir_str = params.get("direction", ["left_to_right"])[0]
+            doppler_data = SoundFXDopplerPanAutomator.calculate_doppler_envelope(approach_speed_kmh=spd, direction=dir_str)
+            return self.send_json({"ok": True, "doppler": doppler_data})
+        elif self.path.startswith("/api/audience/dropoff/predict"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            dropoff_data = AudienceDropoffPredictor.predict_dropoff_hotspots(plan)
+            return self.send_json({"ok": True, "dropoff": dropoff_data})
         else:
             self.send_response(404)
             self.end_headers()

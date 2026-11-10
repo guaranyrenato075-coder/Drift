@@ -276,6 +276,10 @@ def audit_system():
         "editing.smart_scene_transition_director",
         "pipeline.youtube_shorts_repurposer",
         "core.render_crash_recovery_guard",
+        "pipeline.video_bitrate_bandwidth_optimizer",
+        "analysis.visual_artifact_glitch_detector",
+        "audio.soundfx_doppler_pan_automator",
+        "analysis.audience_dropoff_predictor",
     ]
 
     for mod_name in modules_to_test:
