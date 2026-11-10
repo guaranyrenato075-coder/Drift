@@ -51,6 +51,9 @@ from director.long_form_retention_director import LongFormRetentionDirector
 from pipeline.smart_provider_router import SmartProviderRouter
 from pipeline.concurrent_provider_search import ConcurrentProviderSearch
 from storage.disk_space_guard import DiskSpaceGuard
+from editing.color_grading_engine import ColorGradingEngine
+from audio.sound_fx_foley import SoundFXAutoFoley
+from pipeline.auto_chaptering import AutoChapteringEngine
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -224,6 +227,18 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
         </div>
       </div>
 
+      <div style="margin-bottom: 8px;">
+        <label>Gradação de Cor (LUT Cinematográfico)</label>
+        <select id="color-grading">
+          <option value="warm_documentary" selected>Warm Documentary (História & Arte)</option>
+          <option value="teal_and_orange">Teal & Orange (Blockbuster)</option>
+          <option value="deep_space">Deep Space Contrast (Cosmos & Sci-Fi)</option>
+          <option value="nordic_moody">Nordic Moody (Suspense & Mistério)</option>
+          <option value="vintage_35mm">Vintage 35mm (Cinema Retrô)</option>
+          <option value="neutral">Natural / Sem Gradação</option>
+        </select>
+      </div>
+
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
         <div>
           <label>Idioma Voz</label>
@@ -253,6 +268,8 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0;" onclick="abrirRamDiskStats()">💾 RAM-Disk Buffer (Zero Lag)</button>
       <button class="btn btn-secondary" style="border-color:#38bdf8; color:#bae6fd;" onclick="abrirBitrateAdaptativo()">🎛️ Bitrate Adaptativo (CRF)</button>
       <button class="btn btn-secondary" style="border-color:#eab308; color:#fde047; font-weight:700;" onclick="abrirPilotoAutomatico()">🏭 Piloto Automático em Lote</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#38bdf8; font-weight:600;" onclick="abrirCapitulosYouTube()">⏱️ Capítulos YouTube & Timestamps</button>
+      <button class="btn btn-secondary" style="border-color:#c084fc; color:#e9d5ff; font-weight:600;" onclick="abrirFoleySonoro()">🔊 Foley & Efeitos Sonoros (SFX)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -286,6 +303,36 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
 
     <div class="content-area">
       <div id="status-banner"></div>
+
+      <!-- Live Preview Player -->
+      <div id="preview-player-panel" style="background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:12px 16px; margin-bottom:16px; display:none; flex-direction:column; gap:10px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.3);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.1rem;">📺</span>
+            <span style="font-weight:700; color:#fff; font-size:0.95rem;">Live Preview Player</span>
+            <span id="preview-scene-indicator" style="background:#1e293b; color:#93c5fd; border:1px solid #334155; font-size:0.75rem; padding:2px 8px; border-radius:12px;">Cena 1 de 1</span>
+            <span id="preview-provider-badge"></span>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); font-family:monospace;" id="preview-timing">00:00 / 00:00</div>
+        </div>
+        
+        <div style="display:grid; grid-template-columns: 280px 1fr; gap:16px; align-items:center;">
+          <div id="preview-media-container" style="background:#090d16; border-radius:6px; height:158px; display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid var(--border); position:relative;">
+            <img id="preview-media-img" src="" alt="Cena" style="width:100%; height:100%; object-fit:cover; display:none;" />
+            <div id="preview-no-media" style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px;">Sem mídia selecionada</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Narração Falada:</div>
+            <div id="preview-narration-text" style="font-size:0.88rem; color:#f1f5f9; line-height:1.45; max-height:64px; overflow-y:auto; background:var(--card-bg); padding:8px 12px; border-radius:4px; border:1px solid var(--border);"></div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+              <button class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="previewPrevScene()">◀ Anterior</button>
+              <button class="btn" style="padding:4px 14px; font-size:0.8rem; background:#10b981;" id="btn-preview-audio" onclick="togglePlayPreviewAudio()">▶ Ouvir Áudio</button>
+              <button class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="previewNextScene()">Próxima ▶</button>
+              <audio id="preview-audio-player" style="display:none;" onended="onPreviewAudioEnded()"></audio>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="scenes-grid" id="scenes-container">
         <div style="text-align: center; color: var(--text-muted); padding: 60px 0;">
           Clique em <b>1. Analisar Roteiro</b> para gerar a estrutura de cenas e palavras-chave.
@@ -1026,8 +1073,186 @@ O Segredo do Foco Profundo</textarea>
         `;
         container.appendChild(card);
       });
+      updatePreviewPlayer();
+    }
+
+    let currentPreviewSceneIndex = 0;
+    let isPreviewAudioPlaying = false;
+
+    function updatePreviewPlayer() {
+      if (!currentPlan || !currentPlan.scenes || currentPlan.scenes.length === 0) {
+        document.getElementById('preview-player-panel').style.display = 'none';
+        return;
+      }
+      document.getElementById('preview-player-panel').style.display = 'flex';
+      if (currentPreviewSceneIndex >= currentPlan.scenes.length) currentPreviewSceneIndex = 0;
+      if (currentPreviewSceneIndex < 0) currentPreviewSceneIndex = currentPlan.scenes.length - 1;
+
+      const scene = currentPlan.scenes[currentPreviewSceneIndex];
+      document.getElementById('preview-scene-indicator').innerText = `Cena ${scene.order} de ${currentPlan.scenes.length}`;
+      document.getElementById('preview-narration-text').innerText = scene.narration_text || '(Sem narração falada)';
+
+      const badgeEl = document.getElementById('preview-provider-badge');
+      const imgEl = document.getElementById('preview-media-img');
+      const noMediaEl = document.getElementById('preview-no-media');
+
+      if (scene.selected_media) {
+        badgeEl.innerHTML = getProviderBadge(scene.selected_media.platform);
+        if (scene.selected_media.thumbnail_url || scene.selected_media.url) {
+          imgEl.src = scene.selected_media.thumbnail_url || scene.selected_media.url;
+          imgEl.style.display = 'block';
+          noMediaEl.style.display = 'none';
+        } else {
+          imgEl.style.display = 'none';
+          noMediaEl.style.display = 'block';
+          noMediaEl.innerText = `Mídia: ${scene.selected_media.platform}`;
+        }
+      } else {
+        badgeEl.innerHTML = '<span style="color:var(--text-muted); font-size:0.75rem;">Mídia Pendente</span>';
+        imgEl.style.display = 'none';
+        noMediaEl.style.display = 'block';
+        noMediaEl.innerText = 'Sem mídia selecionada';
+      }
+
+      // Timing acumulado
+      let cumulative = 0;
+      for (let i = 0; i < currentPreviewSceneIndex; i++) {
+        cumulative += currentPlan.scenes[i].duration || 0;
+      }
+      let totalDur = currentPlan.scenes.reduce((acc, s) => acc + (s.duration || 0), 0);
+      const fmt = (s) => {
+        let m = Math.floor(s / 60);
+        let sec = Math.floor(s % 60);
+        return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}`;
+      };
+      document.getElementById('preview-timing').innerText = `${fmt(cumulative)} / ${fmt(totalDur)}`;
+
+      const btn = document.getElementById('btn-preview-audio');
+      btn.innerText = '▶ Ouvir Áudio';
+      btn.style.background = '#10b981';
+      isPreviewAudioPlaying = false;
+    }
+
+    function previewNextScene() {
+      if (!currentPlan || !currentPlan.scenes.length) return;
+      currentPreviewSceneIndex = (currentPreviewSceneIndex + 1) % currentPlan.scenes.length;
+      updatePreviewPlayer();
+    }
+
+    function previewPrevScene() {
+      if (!currentPlan || !currentPlan.scenes.length) return;
+      currentPreviewSceneIndex = (currentPreviewSceneIndex - 1 + currentPlan.scenes.length) % currentPlan.scenes.length;
+      updatePreviewPlayer();
+    }
+
+    async function togglePlayPreviewAudio() {
+      if (!currentPlan) return;
+      const scene = currentPlan.scenes[currentPreviewSceneIndex];
+      const btn = document.getElementById('btn-preview-audio');
+      if (isPreviewAudioPlaying) {
+        await fetch('/api/stop_audio', { method: 'POST', body: '{}' });
+        btn.innerText = '▶ Ouvir Áudio';
+        btn.style.background = '#10b981';
+        isPreviewAudioPlaying = false;
+      } else {
+        btn.innerText = '⏹ Parar Áudio';
+        btn.style.background = '#ef4444';
+        isPreviewAudioPlaying = true;
+        try {
+          await fetch('/api/play_audio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: currentPlan.project_id, scene_order: scene.order })
+          });
+        } catch (e) {}
+      }
+    }
+
+    function onPreviewAudioEnded() {
+      const btn = document.getElementById('btn-preview-audio');
+      btn.innerText = '▶ Ouvir Áudio';
+      btn.style.background = '#10b981';
+      isPreviewAudioPlaying = false;
+    }
+
+    async function abrirCapitulosYouTube() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      const res = await fetch(`/api/chapters?project_id=${currentPlan.project_id}`);
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('youtube-chapters-text').value = data.youtube_description;
+        document.getElementById('chapters-modal').style.display = 'flex';
+      }
+    }
+    function fecharCapitulosYouTube() {
+      document.getElementById('chapters-modal').style.display = 'none';
+    }
+    function copiarCapitulosYouTube() {
+      const area = document.getElementById('youtube-chapters-text');
+      area.select();
+      navigator.clipboard.writeText(area.value);
+      alert('Capítulos & Timestamps copiados para a área de transferência!');
+    }
+
+    async function abrirFoleySonoro() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      const res = await fetch(`/api/foley/analyze?project_id=${currentPlan.project_id}`);
+      const data = await res.json();
+      if (data.ok) {
+        const body = document.getElementById('foley-modal-body');
+        if (!data.cues || data.cues.length === 0) {
+          body.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Nenhum efeito foley específico detectado no texto. A produção utilizará a trilha padrão.</div>';
+        } else {
+          body.innerHTML = data.cues.map(c => `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; color:#fff;">🔊 Cena ${c.scene_order}: ${c.label}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Gatilho: <b>"${c.trigger_keyword}"</b> | Início: ${c.relative_start_sec}s (${c.duration_sec}s dur)</div>
+              </div>
+              <div style="background:#1e1b4b; color:#c084fc; font-size:0.75rem; padding:4px 8px; border-radius:4px; font-weight:700;">${c.suggested_volume_db} dB</div>
+            </div>
+          `).join('');
+        }
+        document.getElementById('foley-modal').style.display = 'flex';
+      }
+    }
+    function fecharFoleySonoro() {
+      document.getElementById('foley-modal').style.display = 'none';
     }
   </script>
+
+  <!-- Modal de Capítulos YouTube -->
+  <div id="chapters-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:640px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">⏱️ Capítulos YouTube & Timestamps</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharCapitulosYouTube()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:0.85rem; color:var(--text-muted);">Copie e cole na descrição do YouTube para gerar as divisões clicáveis na barra de progresso:</div>
+        <textarea id="youtube-chapters-text" style="width:100%; height:240px; background:var(--card-bg); border:1px solid var(--border); color:#fff; padding:10px; border-radius:6px; font-family:monospace; font-size:0.85rem; resize:none;" readonly></textarea>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharCapitulosYouTube()">Fechar</button>
+        <button class="btn btn-success" onclick="copiarCapitulosYouTube()">📋 Copiar Capítulos (1-Clique)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Foley SFX -->
+  <div id="foley-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:680px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🔊 Foley & Efeitos Sonoros Detectados</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharFoleySonoro()">&times;</button>
+      </div>
+      <div id="foley-modal-body" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px;">
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharFoleySonoro()">Fechar</button>
+      </div>
+    </div>
+  </div>
   <!-- Modal de Auditoria de Direitos Autorais -->
   <div id="copyright-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
     <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
@@ -1129,6 +1354,42 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "disk_saved_mb": d_stats.disk_saved_mb,
                 "total_stored_mb": d_stats.total_stored_mb,
                 "savings_percentage": d_stats.savings_percentage
+            })
+        elif self.path.startswith("/api/chapters"):
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            chaps = AutoChapteringEngine.generate_chapters(plan)
+            yt_text = AutoChapteringEngine.generate_youtube_description_block(plan)
+            vtt = AutoChapteringEngine.generate_webvtt(plan)
+            return self.send_json({
+                "ok": True,
+                "total_chapters": len(chaps),
+                "youtube_description": yt_text,
+                "webvtt": vtt,
+                "chapters": [c.__dict__ for c in chaps]
+            })
+        elif self.path.startswith("/api/color_grading/presets"):
+            return self.send_json({
+                "ok": True,
+                "presets": ColorGradingEngine.list_presets()
+            })
+        elif self.path.startswith("/api/foley/analyze"):
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            foley_manifest = SoundFXAutoFoley.generate_plan_foley_manifest(plan)
+            return self.send_json({
+                "ok": True,
+                **foley_manifest
             })
         elif self.path.startswith("/api/adaptive_crf"):
             import urllib.parse
@@ -2188,6 +2449,18 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": True, "opened": str(proj_path)})
             except Exception as e:
                 return self.send_json({"ok": False, "error": str(e)})
+
+        elif self.path == "/api/color_grading/apply":
+            project_id = data.get("project_id")
+            preset_id = data.get("preset_id", "warm_documentary")
+            plan = self.repo.get(project_id)
+            if not plan:
+                return self.send_json({"ok": False, "error": "Not found"}, 404)
+            plan.config.extra = plan.config.extra or {}
+            plan.config.extra["color_grading"] = preset_id
+            self.repo.save(plan)
+            filter_str = ColorGradingEngine.get_filter(preset_id)
+            return self.send_json({"ok": True, "preset_id": preset_id, "ffmpeg_filter": filter_str})
         else:
             self.send_response(404)
             self.end_headers()

@@ -233,6 +233,9 @@ def audit_system():
         "pipeline.smart_provider_router",
         "pipeline.concurrent_provider_search",
         "storage.disk_space_guard",
+        "editing.color_grading_engine",
+        "audio.sound_fx_foley",
+        "pipeline.auto_chaptering",
     ]
 
     for mod_name in modules_to_test:
