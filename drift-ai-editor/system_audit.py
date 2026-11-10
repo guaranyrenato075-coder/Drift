@@ -230,6 +230,9 @@ def audit_system():
         "providers.te_papa",
         "providers.mia",
         "providers.barnimages",
+        "pipeline.smart_provider_router",
+        "pipeline.concurrent_provider_search",
+        "storage.disk_space_guard",
     ]
 
     for mod_name in modules_to_test:

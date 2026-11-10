@@ -48,6 +48,9 @@ from storage.media_deduplicator import MediaDeduplicator
 from media.speculative_prefetcher import SpeculativeMediaPrefetcher
 from editing.adaptive_crf_encoder import AdaptiveCrfEncoder
 from director.long_form_retention_director import LongFormRetentionDirector
+from pipeline.smart_provider_router import SmartProviderRouter
+from pipeline.concurrent_provider_search import ConcurrentProviderSearch
+from storage.disk_space_guard import DiskSpaceGuard
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -276,6 +279,8 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
         <span id="telemetry-ram" style="color:#a7f3d0;">RAM: 32 GB</span>
         <span style="color:var(--border);">|</span>
         <span id="telemetry-encoder" style="color:#fef08a;">Encoder: CPU Multithread</span>
+        <span style="color:var(--border);">|</span>
+        <span id="telemetry-disk" style="color:#a7f3d0;">🛡️ Disco C: Saudável</span>
       </div>
     </div>
 
@@ -913,6 +918,57 @@ O Segredo do Foco Profundo</textarea>
       } catch (e) {}
     }
 
+    function getProviderBadge(platform) {
+      if (!platform) return '<span style="color:var(--text-muted);">Pendente</span>';
+      const p = platform.toLowerCase();
+      if (p.includes('nasa')) return '<span style="background:#1e3a8a; color:#bfdbfe; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🚀 NASA</span>';
+      if (p.includes('harvard')) return '<span style="background:#581c87; color:#e9d5ff; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🎓 Harvard Art</span>';
+      if (p.includes('rijksmuseum') || p.includes('rijks')) return '<span style="background:#7c2d12; color:#fed7aa; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🏛️ Rijksmuseum</span>';
+      if (p.includes('foodiesfeed')) return '<span style="background:#831843; color:#fbcfe8; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🍲 Foodiesfeed</span>';
+      if (p.includes('nps')) return '<span style="background:#064e3b; color:#a7f3d0; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🌲 NPS Wild</span>';
+      if (p.includes('artvee')) return '<span style="background:#701a75; color:#f5d0fe; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🎨 Artvee</span>';
+      if (p.includes('wikimedia')) return '<span style="background:#065f46; color:#a7f3d0; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🌐 Wikimedia</span>';
+      if (p.includes('metropolitan') || p.includes('met')) return '<span style="background:#991b1b; color:#fecaca; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🏛️ The Met</span>';
+      if (p.includes('pexels')) return '<span style="background:#065f46; color:#a7f3d0; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">📹 Pexels</span>';
+      if (p.includes('pixabay')) return '<span style="background:#15803d; color:#bbf7d0; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">📷 Pixabay</span>';
+      if (p.includes('europeana')) return '<span style="background:#1d4ed8; color:#dbeafe; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:700;">🇪🇺 Europeana</span>';
+      return `<span style="background:#374151; color:#f3f4f6; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:600;">📁 ${platform}</span>`;
+    }
+
+    async function selectCandidate(candId, sceneOrder) {
+      if (!currentPlan) return;
+      try {
+        const res = await fetch('/api/select_media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, scene_order: sceneOrder, candidate_id: candId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          currentPlan = data.plan;
+          renderScenes();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function checkDiskHealth() {
+      try {
+        const res = await fetch('/api/disk_health');
+        const data = await res.json();
+        if (data.ok && data.health) {
+          const diskEl = document.getElementById('telemetry-disk');
+          if (diskEl) {
+            diskEl.innerText = `🛡️ C: ${data.health.free_gb.toFixed(1)}GB livre`;
+            diskEl.style.color = data.health.is_critical ? '#ef4444' : (data.health.is_warning ? '#f59e0b' : '#a7f3d0');
+          }
+        }
+      } catch(e) {}
+    }
+    setTimeout(checkDiskHealth, 1000);
+    setInterval(checkDiskHealth, 20000);
+
     function renderScenes() {
       if (!currentPlan) return;
       document.getElementById('project-header').innerText = `Projeto: ${currentPlan.title}`;
@@ -929,6 +985,19 @@ O Segredo do Foco Profundo</textarea>
         let tagsHtml = (s.english_keywords || []).map(k => `<span class="tag">${k}</span>`).join('');
         let statusClass = s.state === 'ready' || s.state === 'placed' ? 'status-ready' : (s.state === 'error' ? 'status-error' : 'status-pending');
         
+        let candidatesHtml = '';
+        if (s.candidates && s.candidates.length > 1) {
+          candidatesHtml = `<div style="margin-top:8px; border-top:1px dashed var(--border); padding-top:6px;">
+            <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px;">Alternativas (${s.candidates.length}):</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">` +
+            s.candidates.map(c => {
+              let isSel = s.selected_media && (s.selected_media.candidate_id === c.candidate_id || s.selected_media.external_id === c.external_id);
+              let border = isSel ? '2px solid #10b981' : '1px solid var(--border)';
+              let candId = c.candidate_id || c.external_id;
+              return `<button style="background:var(--card-bg); border:${border}; border-radius:4px; padding:3px 6px; cursor:pointer; font-size:0.7rem; color:#fff;" onclick="selectCandidate('${candId}', ${s.order})">${getProviderBadge(c.platform)}</button>`;
+            }).join('') + `</div></div>`;
+        }
+
         card.innerHTML = `
           <div class="scene-order">${s.order}</div>
           <div class="scene-narration">
@@ -939,11 +1008,12 @@ O Segredo do Foco Profundo</textarea>
             <h4>Descrição Visual</h4>
             <p>${s.visual_description || 'Auto-gerada'}</p>
             <div class="tags">${tagsHtml}</div>
+            ${candidatesHtml}
           </div>
           <div class="scene-meta">
             <div><span class="status-pill ${statusClass}">${s.state.toUpperCase()}</span></div>
             <div><b>Duração:</b> ${(s.duration || 0).toFixed(1)}s</div>
-            <div><b>Mídia:</b> ${s.selected_media ? s.selected_media.platform : 'Pendente'}</div>
+            <div><b>Mídia:</b> ${s.selected_media ? getProviderBadge(s.selected_media.platform) : 'Pendente'}</div>
             ${s.selected_media ? (
               (s.selected_media.copyright_risk === 'safe' && (s.selected_media.commercial_use !== false) && !(s.selected_media.attribution_text || '').startsWith('Mídia:'))
                 ? '<div style="margin-top:4px;"><span style="background:#065f46; color:#a7f3d0; padding:2px 6px; border-radius:4px; font-size:0.72rem; font-weight:600;">🟢 100% Livre Comercial</span></div>'
@@ -994,6 +1064,12 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"status": "ok", "service": "drift-ai-engine"}).encode("utf-8"))
+        elif self.path.startswith("/api/disk_health"):
+            health = DiskSpaceGuard.check_health("C:\\")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "health": health.__dict__}).encode("utf-8"))
         elif self.path.startswith("/api/skills"):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -1947,19 +2023,14 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Not found"}, 404)
 
             with MemoryManager.memory_guard("search"):
-                providers = LazyProviderRegistry.get_or_load_all()
+                DiskSpaceGuard.ensure_healthy_space(min_free_gb=0.3)
                 for s in plan.scenes:
-                    cands = []
-                    for p in providers:
-                        for kw in s.english_keywords[:2]:
-                            cache_k = f"search:{p.name}:{kw}:{plan.config.aspect_ratio}:{plan.config.media_type}"
-                            res = GLOBAL_CACHE.get(cache_k)
-                            if res is None:
-                                res = p.search(kw, orientation=plan.config.aspect_ratio, per_page=3, media_type=plan.config.media_type)
-                                GLOBAL_CACHE.set(cache_k, res, ttl_sec=900)
-                            cands.extend(res)
-                            if len(cands) >= 3: break
-                        if len(cands) >= 3: break
+                    cands = ConcurrentProviderSearch.search_scene_candidates(
+                        scene=s,
+                        plan_aspect_ratio=plan.config.aspect_ratio,
+                        plan_media_type=plan.config.media_type,
+                        target_candidates_count=5
+                    )
                     for c in cands:
                         CopyrightAnalyzer.analyze_candidate(c)
                     s.candidates = cands
