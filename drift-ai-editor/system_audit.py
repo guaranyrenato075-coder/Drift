@@ -248,6 +248,10 @@ def audit_system():
         "editing.smart_transition_director",
         "pipeline.shorts_extractor",
         "pipeline.thumbnail_composer",
+        "pipeline.hashtag_tag_cloud_generator",
+        "editing.smart_ken_burns_director",
+        "editing.watermark_branding_engine",
+        "pipeline.preset_video_templates",
     ]
 
     for mod_name in modules_to_test:

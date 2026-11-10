@@ -66,6 +66,10 @@ from editing.subtitle_styler import AITranscriptionSubtitleStyler
 from editing.smart_transition_director import SmartSceneTransitionDirector
 from pipeline.shorts_extractor import ContentRepurposerShortsExtractor
 from pipeline.thumbnail_composer import AutoThumbnailVisualComposer
+from pipeline.hashtag_tag_cloud_generator import AIHashtagTagCloudGenerator
+from editing.smart_ken_burns_director import SmartSceneKenBurnsDirector
+from editing.watermark_branding_engine import VideoWatermarkBrandingEngine, BrandingConfig
+from pipeline.preset_video_templates import OneClickPresetVideoTemplates
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -292,6 +296,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#3b82f6; color:#93c5fd; font-weight:600;" onclick="abrirDiretorTransicoes()">🎭 Diretor de Transições</button>
       <button class="btn btn-secondary" style="border-color:#ec4899; color:#f472b6; font-weight:600;" onclick="abrirExtratorShorts()">✂️ Extrair Cortes Shorts (9:16)</button>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0; font-weight:600;" onclick="comporThumbnailVisual()">🖼️ Gerar Thumbnail Visual HD</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#bae6fd; font-weight:600;" onclick="abrirSeoTags()">🏷️ Gerador de Tags & SEO YouTube</button>
+      <button class="btn btn-secondary" style="border-color:#a855f7; color:#e9d5ff; font-weight:600;" onclick="abrirKenBurnsDirector()">🎥 Diretor de Câmera Ken Burns</button>
+      <button class="btn btn-secondary" style="border-color:#ec4899; color:#fbcfe8; font-weight:600;" onclick="abrirBrandingModal()">🛡️ Marca D'água & Branding</button>
+      <button class="btn" style="background:#7c3aed; color:#fff; font-weight:700;" onclick="abrirTemplatesModal()">⚡ Templates de Canal em 1-Clique</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -1503,6 +1511,213 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao compor thumbnail: ' + e);
       }
     }
+
+    // === NOVAS FUNÇÕES: SEO TAGS, KEN BURNS, BRANDING, TEMPLATES ===
+    async function abrirSeoTags() {
+      const topic = currentPlan ? (currentPlan.title || 'Vídeo Educativo') : 'Vídeo Educativo';
+      const projId = currentPlan ? currentPlan.project_id : '';
+      const modal = document.getElementById('seo-tags-modal');
+      const listEl = document.getElementById('seo-tags-content');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Carregando tags e hashtags otimizadas...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const url = `/api/seo/generate?project_id=${encodeURIComponent(projId)}&topic=${encodeURIComponent(topic)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro ao gerar tags');
+        const r = data.result;
+
+        listEl.innerHTML = `
+          <div style="background:#1e293b; border-left:4px solid #38bdf8; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#38bdf8; font-size:0.95rem;">🎯 Otimização de Busca YouTube Studio (Limite: 500 chars)</div>
+            <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">Copie a string exata para colar direto na caixa de tags do YouTube Studio:</div>
+            <div style="position:relative; margin-top:8px;">
+              <textarea id="yt-studio-tags-area" readonly style="width:100%; height:90px; background:#0f172a; border:1px solid #334155; color:#f8fafc; font-family:monospace; font-size:0.82rem; padding:8px; border-radius:4px;">${r.youtube_studio_tags_string}</textarea>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                <span style="font-size:0.75rem; color:${r.char_count <= 500 ? '#10b981' : '#ef4444'}; font-weight:700;">${r.char_count}/500 caracteres</span>
+                <button class="btn btn-secondary" style="font-size:0.78rem;" onclick="copiarYtTags()">📋 Copiar Tags para YouTube Studio</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#a7f3d0; font-size:0.85rem; margin-bottom:6px;">#️⃣ Hashtags Virais Recomendadas:</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              ${r.hashtags.map(h => `<span style="background:#064e3b; color:#6ee7b7; padding:3px 8px; border-radius:12px; font-size:0.78rem; font-weight:600;">${h}</span>`).join('')}
+            </div>
+          </div>
+
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#c084fc; font-size:0.85rem; margin-bottom:6px;">🔍 Palavras-chave de Cauda Longa:</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              ${r.long_tail_keywords.map(k => `<span style="background:#3b0764; color:#d8b4fe; padding:3px 8px; border-radius:4px; font-size:0.75rem;">${k}</span>`).join('')}
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha ao gerar tags: ${e.message}</div>`;
+      }
+    }
+    function fecharSeoTags() {
+      document.getElementById('seo-tags-modal').style.display = 'none';
+    }
+    function copiarYtTags() {
+      const el = document.getElementById('yt-studio-tags-area');
+      if (el) {
+        el.select();
+        document.execCommand('copy');
+        alert('Tags copiadas para a área de transferência!');
+      }
+    }
+
+    async function abrirKenBurnsDirector() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('ken-burns-director-modal');
+      const contentEl = document.getElementById('ken-burns-director-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Calculando vetores de câmera cinematográfica por cena...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/camera/plan?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro ao planejar movimentos de câmera');
+        const plan = data.plan;
+
+        contentEl.innerHTML = `
+          <div style="background:#2e1065; border-left:4px solid #a855f7; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#d8b4fe; font-size:0.95rem;">🎥 Direção Automática de Câmera Ken Burns</div>
+            <div style="font-size:0.8rem; color:#e9d5ff; margin-top:2px;">
+              Total de Cenas: <b>${plan.total_scenes}</b> | Movimentos Calculados: <b>${plan.distribution ? Object.entries(plan.distribution).map(([k,v]) => `${k}: ${v}`).join(' | ') : 'Cinematográfico'}</b>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; max-height:400px; overflow-y:auto; margin-top:8px;">
+            ${(plan.scenes || []).map(s => `
+              <div style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:6px; font-size:0.82rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b style="color:#fff;">Cena #${s.scene_order}: ${s.camera_movement}</b>
+                  <span style="background:#581c87; color:#f3e8ff; padding:2px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">Zoom: ${s.zoom_start.toFixed(2)}x ➔ ${s.zoom_end.toFixed(2)}x</span>
+                </div>
+                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">${s.narration_snippet || ''}</div>
+                <div style="margin-top:6px; background:#0f172a; padding:6px; border-radius:4px; font-family:monospace; font-size:0.72rem; color:#38bdf8; word-break:break-all;">
+                  ${s.ffmpeg_zoompan_expr}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharKenBurnsDirector() {
+      document.getElementById('ken-burns-director-modal').style.display = 'none';
+    }
+
+    function abrirBrandingModal() {
+      document.getElementById('branding-modal').style.display = 'flex';
+    }
+    function fecharBrandingModal() {
+      document.getElementById('branding-modal').style.display = 'none';
+    }
+    async function salvarBrandingConfig() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const watermark_path = document.getElementById('branding-logo-path').value.trim();
+      const position = document.getElementById('branding-pos').value;
+      const opacity = parseFloat(document.getElementById('branding-opacity').value) || 0.85;
+      const scale_pct = parseFloat(document.getElementById('branding-scale').value) || 15.0;
+      const enable_intro_lower_third = document.getElementById('branding-lower-third-check').checked;
+      const channel_name = document.getElementById('branding-channel-name').value.trim();
+      const channel_handle = document.getElementById('branding-channel-handle').value.trim();
+
+      showStatus('Aplicando marca d\'água e branding visual...', '#ec4899');
+      try {
+        const res = await fetch('/api/branding/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: currentPlan.project_id,
+            watermark_path,
+            position,
+            opacity,
+            scale_pct,
+            enable_intro_lower_third,
+            channel_name,
+            channel_handle
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus('Branding e Marca D\'água salvos no projeto!', '#10b981');
+          alert('Configuração de marca d\'água e lower-third intro salva com sucesso!');
+          fecharBrandingModal();
+        } else {
+          alert('Erro: ' + (data.error || 'Falha ao salvar branding'));
+        }
+      } catch (e) {
+        alert('Erro ao salvar branding: ' + e.message);
+      }
+    }
+
+    async function abrirTemplatesModal() {
+      const modal = document.getElementById('templates-modal');
+      const grid = document.getElementById('templates-cards-grid');
+      grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Carregando templates de canal...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch('/api/templates/list');
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro ao listar templates');
+
+        grid.innerHTML = (data.templates || []).map(t => `
+          <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="color:#fff; font-size:1.05rem;">${t.name}</h4>
+                <span style="background:#7c3aed; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:4px; font-weight:700;">${t.aspect_ratio}</span>
+              </div>
+              <p style="color:var(--text-muted); font-size:0.8rem; margin-top:6px;">${t.description}</p>
+              <div style="margin-top:10px; font-size:0.75rem; display:flex; flex-direction:column; gap:4px; color:#cbd5e1;">
+                <div>🎨 <b>Estilo de Cor:</b> ${t.color_grade}</div>
+                <div>🔤 <b>Tipografia:</b> ${t.subtitle_font} (${t.subtitle_color})</div>
+                <div>🎵 <b>Gênero Musical:</b> ${t.bgm_genre} (Volume: ${Math.round(t.bgm_volume * 100)}%)</div>
+                <div>📹 <b>Câmera:</b> ${t.camera_style} | Transições: ${t.transition_type}</div>
+              </div>
+            </div>
+            <button class="btn" style="background:#7c3aed; color:#fff; font-weight:700; width:100%; margin-top:10px;" onclick="aplicarTemplateCanal('${t.id}')">
+              ⚡ Aplicar Este Template
+            </button>
+          </div>
+        `).join('');
+      } catch (e) {
+        grid.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha ao carregar templates: ${e.message}</div>`;
+      }
+    }
+    function fecharTemplatesModal() {
+      document.getElementById('templates-modal').style.display = 'none';
+    }
+    async function aplicarTemplateCanal(templateId) {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      showStatus(`Aplicando template ${templateId} ao projeto...`, '#7c3aed');
+      try {
+        const res = await fetch('/api/templates/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, template_id: templateId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Template ${templateId} aplicado com sucesso!`, '#10b981');
+          alert(`Template "${templateId}" aplicado ao projeto!\n\nProporção: ${data.config.aspect_ratio}\nCores, legendas, trilha e Ken Burns padronizados para este canal.`);
+          fecharTemplatesModal();
+        } else {
+          alert('Erro: ' + (data.error || 'Falha ao aplicar template'));
+        }
+      } catch (e) {
+        alert('Erro ao aplicar template: ' + e.message);
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -1728,6 +1943,114 @@ O Segredo do Foco Profundo</textarea>
         <button class="btn btn-secondary" onclick="fecharAuditoriaCopyright()">Fechar</button>
         <button class="btn" style="background:#e11d48;" id="btn-remediate-risk" onclick="executarRemediacaoCopyright()">⚡ Auto-Corrigir Cenas de Risco (1-Clique)</button>
         <button class="btn btn-success" id="btn-copy-credits" onclick="copiarCreditosYouTube()">📋 Copiar Créditos para Descrição</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Gerador de Tags & SEO YouTube -->
+  <div id="seo-tags-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🏷️ Gerador de Tags & SEO YouTube Studio</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharSeoTags()">&times;</button>
+      </div>
+      <div id="seo-tags-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharSeoTags()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Diretor de Câmera Ken Burns -->
+  <div id="ken-burns-director-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎥 Diretor Inteligente de Câmera Ken Burns</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharKenBurnsDirector()">&times;</button>
+      </div>
+      <div id="ken-burns-director-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharKenBurnsDirector()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Marca D'água & Branding -->
+  <div id="branding-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:640px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🛡️ Identidade Visual & Marca D'água</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharBrandingModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+        <div style="background:#1e293b; padding:10px; border-radius:6px; font-size:0.82rem; color:#93c5fd;">
+          Adicione um logotipo translúcido em todos os frames e um lower-third profissional de introdução nos primeiros 5 segundos.
+        </div>
+        <div>
+          <label style="color:#cbd5e1; font-size:0.85rem;">Caminho da Imagem / Logo (PNG transparente):</label>
+          <input type="text" id="branding-logo-path" value="assets/logo.png" style="width:100%; margin-top:4px; background:#0f172a; border:1px solid #334155; color:#fff; padding:6px 10px; border-radius:4px; font-size:0.85rem;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="color:#cbd5e1; font-size:0.85rem;">Posição da Marca d'Água:</label>
+            <select id="branding-pos" style="width:100%; margin-top:4px; background:#0f172a; border:1px solid #334155; color:#fff; padding:6px 10px; border-radius:4px; font-size:0.85rem;">
+              <option value="top_right" selected>Canto Superior Direito</option>
+              <option value="bottom_right">Canto Inferior Direito</option>
+              <option value="top_left">Canto Superior Esquerdo</option>
+              <option value="bottom_left">Canto Inferior Esquerdo</option>
+            </select>
+          </div>
+          <div>
+            <label style="color:#cbd5e1; font-size:0.85rem;">Opacidade (0.1 a 1.0):</label>
+            <input type="number" id="branding-opacity" step="0.05" min="0.1" max="1.0" value="0.85" style="width:100%; margin-top:4px; background:#0f172a; border:1px solid #334155; color:#fff; padding:6px 10px; border-radius:4px; font-size:0.85rem;">
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="color:#cbd5e1; font-size:0.85rem;">Escala (% da largura do vídeo):</label>
+            <input type="number" id="branding-scale" step="1" min="5" max="40" value="15" style="width:100%; margin-top:4px; background:#0f172a; border:1px solid #334155; color:#fff; padding:6px 10px; border-radius:4px; font-size:0.85rem;">
+          </div>
+          <div style="display:flex; align-items:center; margin-top:20px; gap:8px;">
+            <input type="checkbox" id="branding-lower-third-check" checked style="width:18px; height:18px;">
+            <label for="branding-lower-third-check" style="color:#cbd5e1; font-size:0.85rem; font-weight:600;">Ativar Lower-Third Intro (0s-5s)</label>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="color:#cbd5e1; font-size:0.85rem;">Nome do Canal (Lower-Third):</label>
+            <input type="text" id="branding-channel-name" value="Drift Cinematic Studio" style="width:100%; margin-top:4px; background:#0f172a; border:1px solid #334155; color:#fff; padding:6px 10px; border-radius:4px; font-size:0.85rem;">
+          </div>
+          <div>
+            <label style="color:#cbd5e1; font-size:0.85rem;">Arroba / Handle do Canal:</label>
+            <input type="text" id="branding-channel-handle" value="@driftcinematic" style="width:100%; margin-top:4px; background:#0f172a; border:1px solid #334155; color:#fff; padding:6px 10px; border-radius:4px; font-size:0.85rem;">
+          </div>
+        </div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharBrandingModal()">Cancelar</button>
+        <button class="btn" style="background:#ec4899; color:#fff; font-weight:700;" onclick="salvarBrandingConfig()">💾 Salvar & Aplicar Branding</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Templates de Canal em 1-Clique -->
+  <div id="templates-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:840px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">⚡ Templates de Canal em 1-Clique</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharTemplatesModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1;">
+        <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px;">
+          Selecione a identidade completa do seu canal. Um clique padroniza cores, tipografia de legendas, proporção de tela, filtros Ken Burns e trilha sonora BGM:
+        </div>
+        <div id="templates-cards-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        </div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharTemplatesModal()">Fechar</button>
       </div>
     </div>
   </div>
@@ -2150,6 +2473,72 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 minutes = 30.0
             mega_plan = MegaDurationArchitect.plan_mega_production(topic=topic, target_minutes=minutes)
             return self.send_json({"ok": True, "plan": mega_plan.to_dict()})
+        elif self.path.startswith("/api/seo/generate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            topic = params.get("topic", ["Vídeo Educativo"])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                from models.scene_plan import Scene
+                plan = ProjectPlan(
+                    project_id="temp_seo",
+                    title=topic,
+                    config=ProjectConfig(aspect_ratio="16:9"),
+                    scenes=[Scene(order=1, duration=5.0, narration_text=topic, visual_description=topic, english_keywords=[topic])]
+                )
+            seo_data = AIHashtagTagCloudGenerator.generate_seo_metadata(plan)
+            res = {
+                "project_id": plan.project_id,
+                "niche_category": seo_data.get("niche_category", "Geral"),
+                "hashtags": seo_data.get("hashtags", []),
+                "formatted_hashtags_string": seo_data.get("formatted_hashtags_string", ""),
+                "youtube_studio_tags_string": seo_data.get("youtube_tags_string", ""),
+                "char_count": len(seo_data.get("youtube_tags_string", "")),
+                "long_tail_keywords": seo_data.get("long_tail_keywords", [])
+            }
+            return self.send_json({"ok": True, "result": res})
+        elif self.path.startswith("/api/camera/plan"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            manifest = SmartSceneKenBurnsDirector.generate_plan_camera_manifest(plan)
+            scenes_data = []
+            distribution = {}
+            for m in manifest.get("camera_motions", []):
+                m_type = m.get("motion_type", "gentle_zoom_in")
+                distribution[m_type] = distribution.get(m_type, 0) + 1
+                scenes_data.append({
+                    "scene_order": m.get("scene_order", 1),
+                    "camera_movement": m.get("motion_type", "gentle_zoom_in"),
+                    "zoom_start": 1.0,
+                    "zoom_end": 1.25 if "zoom_in" in m_type else 1.0,
+                    "narration_snippet": m.get("narrative_reason", ""),
+                    "ffmpeg_zoompan_expr": m.get("ffmpeg_filter", "")
+                })
+            return self.send_json({
+                "ok": True,
+                "plan": {
+                    "project_id": plan.project_id,
+                    "total_scenes": manifest.get("total_scenes", len(scenes_data)),
+                    "distribution": distribution,
+                    "scenes": scenes_data
+                }
+            })
+        elif self.path.startswith("/api/templates/list"):
+            templates = OneClickPresetVideoTemplates.list_templates()
+            for t in templates:
+                t.setdefault("color_grade", t.get("color_grade", "Natural"))
+                t.setdefault("subtitle_font", "Cinzel" if t["id"] == "history_documentary" else ("Orbitron" if t["id"] == "space_scifi" else ("Montserrat" if t["id"] == "viral_shorts" else "Inter")))
+                t.setdefault("subtitle_color", "Amarelo Neon" if t["id"] == "viral_shorts" else "Branco")
+                t.setdefault("bgm_genre", "Orquestral / Cello" if t["id"] == "history_documentary" else ("Cosmic Ambient" if t["id"] == "space_scifi" else ("Phonk / Upbeat" if t["id"] == "viral_shorts" else "Modern Lo-Fi")))
+                t.setdefault("bgm_volume", 0.18)
+                t.setdefault("camera_style", "Cinemático Ken Burns" if t["id"] != "business_tech" else "Estático / Minimal")
+                t.setdefault("transition_type", t.get("transition_kind", "fade"))
+            return self.send_json({"ok": True, "templates": templates})
         else:
             self.send_response(404)
             self.end_headers()
@@ -3088,6 +3477,55 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "hero_platform": res.hero_platform,
                 "headline_text": res.headline_text,
                 "engine": res.used_engine
+            })
+        elif self.path == "/api/templates/apply":
+            proj_id = data.get("project_id")
+            tmpl_id = data.get("template_id", "space_scifi")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            plan = OneClickPresetVideoTemplates.apply_template_to_plan(plan, tmpl_id)
+            self.repo.save(plan)
+            return self.send_json({
+                "ok": True,
+                "project_id": plan.project_id,
+                "template_id": tmpl_id,
+                "config": {
+                    "aspect_ratio": plan.config.aspect_ratio,
+                    "width": plan.config.width,
+                    "height": plan.config.height,
+                    "transition_kind": plan.config.transition_kind,
+                    "enable_ken_burns": plan.config.enable_ken_burns,
+                    "extra": plan.config.extra
+                }
+            })
+        elif self.path == "/api/branding/apply":
+            proj_id = data.get("project_id")
+            plan = self.repo.get(proj_id) if proj_id else None
+            channel_handle = data.get("channel_handle") or data.get("channel_name") or "@DriftAI"
+            branding_cfg = BrandingConfig(
+                channel_tag=channel_handle,
+                position=data.get("position", "top_right"),
+                opacity=float(data.get("opacity", 0.70)),
+                enable_lower_third=bool(data.get("enable_intro_lower_third", True)),
+                lower_third_title=data.get("channel_name", "DOCUMENTÁRIO EXCLUSIVO")
+            )
+            filt = VideoWatermarkBrandingEngine.generate_ffmpeg_branding_filter(branding_cfg)
+            if plan:
+                plan.config.extra = plan.config.extra or {}
+                plan.config.extra["branding"] = {
+                    "channel_tag": branding_cfg.channel_tag,
+                    "position": branding_cfg.position,
+                    "opacity": branding_cfg.opacity,
+                    "enable_lower_third": branding_cfg.enable_lower_third,
+                    "lower_third_title": branding_cfg.lower_third_title,
+                    "ffmpeg_filter": filt
+                }
+                self.repo.save(plan)
+            return self.send_json({
+                "ok": True,
+                "project_id": proj_id,
+                "ffmpeg_filter": filt
             })
         else:
             self.send_response(404)

@@ -63,6 +63,10 @@
 - **Diretor Inteligente de Transições (`SmartSceneTransitionDirector`):** Analisa contexto emocional e saltos temporais para alternar entre cortes secos (Hard Cut), transições pretas (Dip to Black) e fusões suaves.
 - **Extrator de Cortes para Shorts/TikTok (`ContentRepurposerShortsExtractor`):** Identifica picos de curiosidade e energia em produções longas e recorta segmentos de 30 a 55s formatados em 9:16 vertical prontos para redes sociais.
 - **Compositor de Thumbnails Visuais 1280x720 (`AutoThumbnailVisualComposer`):** Gera o arquivo de imagem final da capa combinando o frame de maior impacto, vinheta de contraste e tipografia de alto CTR.
+- **Gerador de Nuvem de Tags e SEO YouTube Studio (`AIHashtagTagCloudGenerator`):** Extrai palavras-chave de cauda longa, hashtags virais nichadas e gera a string exata formatada para colar na caixa de tags do YouTube Studio sob o limite de 500 caracteres.
+- **Diretor de Câmera Inteligente Ken Burns (`SmartSceneKenBurnsDirector`):** Analisa a semântica de cada cena e calcula expressões matemáticas FFmpeg `zoompan` para movimentos dinâmicos como aproximação em rostos (slow face zoom-in), panorâmica horizontal (pan) e recuo cósmico (pull-out).
+- **Motor de Marca D'água & Lower-Third Intro (`VideoWatermarkBrandingEngine`):** Injeta logotipo translúcido com posicionamento flexível e anima uma faixa profissional de apresentação (lower-third) nos primeiros 5 segundos para autoridade de canal.
+- **Templates de Canal em 1-Clique (`OneClickPresetVideoTemplates`):** Padronização instantânea com perfis de canal prontos (Cosmos/Sci-Fi 16:9, Documentário Histórico 16:9, Viral Shorts 9:16 e Negócios/Tech 16:9) sincronizando gradação de cor, tipografia de legendas, BGM e proporção de tela.
 
 ---
 </div>
