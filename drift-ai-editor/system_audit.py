@@ -272,6 +272,10 @@ def audit_system():
         "audio.sound_design_foley_director",
         "editing.color_film_stock_emulator",
         "pipeline.ctr_metadata_seo_optimizer",
+        "audio.voice_denoise_spectral_isolator",
+        "editing.smart_scene_transition_director",
+        "pipeline.youtube_shorts_repurposer",
+        "core.render_crash_recovery_guard",
     ]
 
     for mod_name in modules_to_test:

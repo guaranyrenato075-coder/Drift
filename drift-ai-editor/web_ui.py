@@ -90,6 +90,10 @@ from editing.dynamic_broll_pacer import DynamicBrollPacer
 from audio.sound_design_foley_director import SoundDesignFoleyAutoDirector
 from editing.color_film_stock_emulator import AutoColorToneFilmStockEmulator
 from pipeline.ctr_metadata_seo_optimizer import CTRMetadataSEOOptimizer
+from audio.voice_denoise_spectral_isolator import AIVoiceDenoiseSpectralIsolator
+from editing.smart_scene_transition_director import SmartSceneTransitionDirector
+from pipeline.youtube_shorts_repurposer import YouTubeShortsRepurposer
+from core.render_crash_recovery_guard import AutoRenderCrashRecoveryGuard
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -340,6 +344,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#ec4899; color:#fbcfe8; font-weight:600;" onclick="abrirFoleyModal()">🔊 Sound Design & Foley</button>
       <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirFilmStockModal()">📽️ Emulador de Película 35mm</button>
       <button class="btn btn-secondary" style="border-color:#14b8a6; color:#99f6e4; font-weight:600;" onclick="abrirCTROptimizerModal()">📈 Metadados SEO & Títulos CTR</button>
+      <button class="btn btn-secondary" style="border-color:#6366f1; color:#c7d2fe; font-weight:600;" onclick="abrirDenoiseModal()">🎙️ Denoise Espectral de Voz</button>
+      <button class="btn btn-secondary" style="border-color:#f97316; color:#ffedd5; font-weight:600;" onclick="abrirTransitionsModal()">🔀 Transições Cinemáticas (IA)</button>
+      <button class="btn btn-secondary" style="border-color:#e11d48; color:#ffe4e6; font-weight:600;" onclick="abrirShortsModal()">📱 Repurpose Shorts 9:16</button>
+      <button class="btn btn-secondary" style="border-color:#22c55e; color:#bbf7d0; font-weight:600;" onclick="abrirRecoveryModal()">🛡️ Checkpoint & Crash Recovery</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -2839,6 +2847,221 @@ O Segredo do Foco Profundo</textarea>
         });
       }
     }
+
+    async function abrirDenoiseModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('denoise-modal');
+      const listEl = document.getElementById('denoise-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Carregando perfis de isolamento espectral de ruído...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch('/api/voice/denoise/profiles');
+        const data = await res.json();
+        if (data.ok && data.profiles) {
+          let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
+          for (const [key, p] of Object.entries(data.profiles)) {
+            html += `
+              <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                  <div style="font-weight:700; color:#c7d2fe; font-size:0.95rem;">${p.name}</div>
+                  <div style="font-size:0.82rem; color:var(--text-muted); margin-top:3px;">${p.description}</div>
+                  <div style="font-size:0.75rem; color:#818cf8; margin-top:4px; font-family:monospace;">Corte: ${p.highpass_hz}Hz - ${p.lowpass_hz}Hz | Redução: -${p.noise_reduction_db}dB | Gate: ${p.gate_threshold_db}dB</div>
+                </div>
+                <button class="btn" style="background:#6366f1; color:#fff; font-weight:700; margin-left:12px;" onclick="aplicarDenoiseSelecionado('${key}')">Aplicar</button>
+              </div>
+            `;
+          }
+          html += '</div>';
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao carregar perfis de denoise.</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharDenoiseModal() {
+      document.getElementById('denoise-modal').style.display = 'none';
+    }
+    async function aplicarDenoiseSelecionado(profileKey) {
+      if (!currentPlan) return;
+      showStatus('Aplicando isolamento espectral à locução...', '#6366f1');
+      try {
+        const res = await fetch('/api/voice/denoise/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, profile: profileKey })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Denoise ${profileKey} configurado com sucesso!`, '#10b981');
+          alert(`Sucesso!\n\nPerfil de filtragem vocal "${profileKey}" associado ao projeto com ganho estimado de +${data.estimated_snr_gain_db}dB SNR.`);
+          fecharDenoiseModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar denoise: ' + e.message);
+      }
+    }
+
+    async function abrirTransitionsModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('transitions-modal');
+      const listEl = document.getElementById('transitions-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Orquestrando transições cinemáticas entre cenas...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/transitions/plan?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.transitions) {
+          const t = data.transitions;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; color:#f97316;">Score de Fluidez Cinemática:</span>
+              <span style="font-weight:800; color:#ffedd5;">${t.smoothness_score}% (${t.total_transitions} cortes adaptativos)</span>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Mapa de Transições de Cena:</div>
+          `;
+          t.transitions.forEach(tr => {
+            html += `
+              <div style="background:rgba(249,115,22,0.06); border:1px solid rgba(249,115,22,0.25); border-radius:6px; padding:10px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; color:#ffedd5;">
+                  <span>Cena #${tr.from_scene_index} ➔ Cena #${tr.to_scene_index} (Aos ${tr.cut_timestamp}s)</span>
+                  <span style="color:#f97316;">${tr.name} (${tr.duration}s)</span>
+                </div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Motivo: ${tr.reason}</div>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao planejar transições: ${data.error || 'Desconhecido'}</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharTransitionsModal() {
+      document.getElementById('transitions-modal').style.display = 'none';
+    }
+
+    async function abrirShortsModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('shorts-modal');
+      const listEl = document.getElementById('shorts-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Localizando picos de retenção para gerar Shorts 9:16...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/shorts/generate?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.shorts) {
+          const s = data.shorts;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; color:#e11d48;">Formato Vertical:</span>
+              <span style="font-weight:800; color:#ffe4e6;">${s.export_resolution} (${s.total_shorts_generated} clipes gerados)</span>
+            </div>
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px; color:var(--text-main);">Clipes Virais Extraídos do Vídeo:</div>
+          `;
+          s.shorts.forEach(c => {
+            html += `
+              <div style="background:rgba(225,29,72,0.06); border:1px solid rgba(225,29,72,0.25); border-radius:6px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.92rem; color:#ffe4e6;">
+                  <span>${c.title}</span>
+                  <span style="color:#e11d48;">Viral Score: ${c.viral_potential_score}%</span>
+                </div>
+                <div style="font-size:0.82rem; color:#fde68a; margin-top:4px;">🎯 Gancho Visual no Topo: <b>"${c.hook_headline}"</b></div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:3px;">
+                  Intervalo: ${c.start_time}s até ${c.end_time}s (Duração: ${c.duration}s) | Layout: Blur Stack Background
+                </div>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = `<div style="color:#ef4444;">Erro ao gerar Shorts: ${data.error || 'Desconhecido'}</div>`;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharShortsModal() {
+      document.getElementById('shorts-modal').style.display = 'none';
+    }
+
+    async function abrirRecoveryModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('recovery-modal');
+      const contentEl = document.getElementById('recovery-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Consultando checkpoints de renderização atômica...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/render/recovery/status?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.status) {
+          const st = data.status;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#22c55e;">Status de Tolerância a Falhas:</span>
+                <span style="font-weight:800; color:${st.has_resumable_checkpoint ? '#f59e0b' : '#22c55e'};">
+                  ${st.has_resumable_checkpoint ? 'CHECKPOINT RECUPERÁVEL DETECTADO' : 'PRONTO / SEM INTERRUPÇÕES'}
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-top:6px;">${st.message}</div>
+            </div>
+          `;
+          if (st.has_resumable_checkpoint) {
+            html += `
+              <div style="background:rgba(34,197,94,0.06); border:1px solid rgba(34,197,94,0.25); border-radius:6px; padding:12px; margin-bottom:12px;">
+                <div style="font-weight:700; color:#bbf7d0; font-size:0.9rem;">Dados do Checkpoint Salvo:</div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Progresso concluído antes da parada: <b>${st.progress_percent}%</b></div>
+                <div style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">Cenas já salvas em disco: <b>${st.saved_chunks_count} de ${st.total_scenes}</b></div>
+                <div style="font-size:0.82rem; color:#fde68a; margin-top:4px;">🚀 O próximo render iniciará automaticamente a partir da <b>Cena #${st.resume_from_scene_index}</b>.</div>
+              </div>
+              <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-secondary" style="border-color:#ef4444; color:#fca5a5; font-size:0.8rem;" onclick="limparRecoveryCheckpoint()">🗑️ Descartar Checkpoint e Reiniciar do Zero</button>
+              </div>
+            `;
+          } else {
+            html += `
+              <div style="color:var(--text-muted); font-size:0.85rem; line-height:1.5;">
+                O guardião de crash recovery salva o progresso a cada cena compilada. Caso o computador seja reiniciado ou o processo sofra interrupção forçada, você poderá retomar o render sem perder os blocos já processados.
+              </div>
+            `;
+          }
+          contentEl.innerHTML = html;
+        } else {
+          contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao consultar recovery: ${data.error || 'Desconhecido'}</div>`;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro na requisição: ${e.message}</div>`;
+      }
+    }
+    function fecharRecoveryModal() {
+      document.getElementById('recovery-modal').style.display = 'none';
+    }
+    async function limparRecoveryCheckpoint() {
+      if (!currentPlan) return;
+      if (!confirm('Deseja realmente descartar o checkpoint salvo e reiniciar a fila de render?')) return;
+      try {
+        const res = await fetch('/api/render/recovery/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Checkpoint limpo com sucesso.');
+          abrirRecoveryModal();
+        }
+      } catch (e) {
+        alert('Erro ao limpar checkpoint: ' + e.message);
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -3473,6 +3696,62 @@ O Segredo do Foco Profundo</textarea>
       <div id="ctr-optimizer-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
       <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
         <button class="btn btn-secondary" onclick="fecharCTROptimizerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Denoise Espectral de Voz -->
+  <div id="denoise-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎙️ Isolamento Espectral de Ruído & Denoise Vocal</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharDenoiseModal()">&times;</button>
+      </div>
+      <div id="denoise-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDenoiseModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Transições Cinemáticas Inteligentes -->
+  <div id="transitions-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🔀 Diretor de Transições Cinemáticas Inteligentes</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharTransitionsModal()">&times;</button>
+      </div>
+      <div id="transitions-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharTransitionsModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Repurpose para YouTube Shorts 9:16 -->
+  <div id="shorts-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📱 Repurposer de Vídeos Verticais (Shorts / Reels)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharShortsModal()">&times;</button>
+      </div>
+      <div id="shorts-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharShortsModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Checkpoint & Crash Recovery -->
+  <div id="recovery-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🛡️ Resiliência & Recuperação de Renderização Interrompida</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharRecoveryModal()">&times;</button>
+      </div>
+      <div id="recovery-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharRecoveryModal()">Fechar</button>
       </div>
     </div>
   </div>
@@ -4127,6 +4406,33 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
             seo_data = CTRMetadataSEOOptimizer.generate_metadata_package(plan)
             return self.send_json({"ok": True, "metadata": seo_data})
+        elif self.path.startswith("/api/voice/denoise/profiles"):
+            profiles = AIVoiceDenoiseSpectralIsolator.get_available_profiles()
+            return self.send_json({"ok": True, "profiles": profiles})
+        elif self.path.startswith("/api/transitions/plan"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            transitions_data = SmartSceneTransitionDirector.plan_scene_transitions(plan)
+            return self.send_json({"ok": True, "transitions": transitions_data})
+        elif self.path.startswith("/api/shorts/generate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            shorts_data = YouTubeShortsRepurposer.generate_shorts_packages(plan)
+            return self.send_json({"ok": True, "shorts": shorts_data})
+        elif self.path.startswith("/api/render/recovery/status"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            rec_status = AutoRenderCrashRecoveryGuard.check_resumable_render(proj_id if proj_id else "default")
+            return self.send_json({"ok": True, "status": rec_status})
         else:
             self.send_response(404)
             self.end_headers()
@@ -5183,6 +5489,19 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             film_res = AutoColorToneFilmStockEmulator.apply_film_stock_to_plan(plan, stock_name, grain_intensity)
             self.repo.save(plan)
             return self.send_json({"ok": True, **film_res})
+        elif self.path == "/api/voice/denoise/apply":
+            proj_id = data.get("project_id")
+            profile_name = data.get("profile", "studio_clean")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            denoise_res = AIVoiceDenoiseSpectralIsolator.apply_profile_to_project(plan, profile_name)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **denoise_res})
+        elif self.path == "/api/render/recovery/clear":
+            proj_id = data.get("project_id", "default")
+            AutoRenderCrashRecoveryGuard.clear_checkpoint(proj_id)
+            return self.send_json({"ok": True, "message": "Checkpoint descartado com sucesso."})
         else:
             self.send_response(404)
             self.end_headers()
