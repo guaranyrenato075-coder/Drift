@@ -280,6 +280,10 @@ def audit_system():
         "analysis.visual_artifact_glitch_detector",
         "audio.soundfx_doppler_pan_automator",
         "analysis.audience_dropoff_predictor",
+        "editing.dynamic_subtitles_word_highlighter",
+        "editing.smart_visual_pacing_bpm_aligner",
+        "analysis.narrative_tension_curve_auditor",
+        "pipeline.auto_video_watermark_branding_director",
     ]
 
     for mod_name in modules_to_test:

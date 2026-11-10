@@ -98,6 +98,10 @@ from pipeline.video_bitrate_bandwidth_optimizer import VideoBitrateBandwidthOpti
 from analysis.visual_artifact_glitch_detector import VisualArtifactGlitchDetector
 from audio.soundfx_doppler_pan_automator import SoundFXDopplerPanAutomator
 from analysis.audience_dropoff_predictor import AudienceDropoffPredictor
+from editing.dynamic_subtitles_word_highlighter import DynamicSubtitlesWordHighlighter
+from editing.smart_visual_pacing_bpm_aligner import SmartVisualPacingBPMAligner
+from analysis.narrative_tension_curve_auditor import NarrativeTensionCurveAuditor
+from pipeline.auto_video_watermark_branding_director import AutoVideoWatermarkBrandingDirector
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -356,6 +360,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#a855f7; color:#f3e8ff; font-weight:600;" onclick="abrirQCModal()">🔍 Controle de Qualidade (QC Vídeo)</button>
       <button class="btn btn-secondary" style="border-color:#06b6d4; color:#cffafe; font-weight:600;" onclick="abrirDopplerModal()">🏎️ Áudio Doppler 3D (SFX)</button>
       <button class="btn btn-secondary" style="border-color:#eab308; color:#fef9c3; font-weight:600;" onclick="abrirDropoffModal()">📉 Preditor de Abandono (Drop-Off)</button>
+      <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirDynamicSubtitlesModal()">💬 Legendas Dinâmicas (Karaoke)</button>
+      <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirBPMAlignerModal()">🎵 Alinhador de Cortes por BPM</button>
+      <button class="btn btn-secondary" style="border-color:#f43f5e; color:#ffe4e6; font-weight:600;" onclick="abrirTensionCurveModal()">📈 Curva de Tensão (3 Atos)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirWatermarkModal()">🛡️ Marca d'Água & Anti-Pirataria</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -3264,6 +3272,180 @@ O Segredo do Foco Profundo</textarea>
     function fecharDropoffModal() {
       document.getElementById('dropoff-modal').style.display = 'none';
     }
+
+    async function abrirDynamicSubtitlesModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('dynamic-subtitles-modal');
+      modal.style.display = 'flex';
+      gerarSubtitlesASS('hormozi_bold_yellow');
+    }
+    function fecharDynamicSubtitlesModal() {
+      document.getElementById('dynamic-subtitles-modal').style.display = 'none';
+    }
+    async function gerarSubtitlesASS(styleKey) {
+      const contentEl = document.getElementById('dynamic-subtitles-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Gerando script .ASS com tags de karaoke e realce palavra por palavra...</div>';
+      try {
+        const res = await fetch(`/api/subtitles/karaoke/generate?project_id=${currentPlan.project_id}&style=${styleKey}`);
+        const data = await res.json();
+        if (data.ok && data.subtitles) {
+          const sub = data.subtitles;
+          const st = sub.style_details;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#ec4899;">Estilo Selecionado: ${st.name}</span>
+                <span style="font-size:0.8rem; color:#fce7f3; font-family:monospace;">${st.font_name} ${st.font_size}pt</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                Cores ASS: Primária ${st.primary_color} | Realce Ativo ${st.highlight_color} | Borda: ${st.outline_width}px
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:6px; color:var(--text-main);">Escolha o Estilo Visual de Realce:</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="gerarSubtitlesASS('hormozi_bold_yellow')">Hormozi Yellow</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="gerarSubtitlesASS('mrbeast_impact_green')">MrBeast Green</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="gerarSubtitlesASS('cyberpunk_neon_cyan')">Cyberpunk Cyan</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="gerarSubtitlesASS('minimal_cinema_white')">Minimal Cinema</button>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:6px; color:var(--text-main);">Prévia do Script .ASS Gerado (${sub.total_dialogue_events} falas):</div>
+            <textarea readonly style="width:100%; height:110px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#fbcfe8; font-size:0.75rem; padding:8px; font-family:monospace; resize:none;">${sub.ass_content}</textarea>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao gerar legendas: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirBPMAlignerModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('bpm-aligner-modal');
+      modal.style.display = 'flex';
+    }
+    function fecharBPMAlignerModal() {
+      document.getElementById('bpm-aligner-modal').style.display = 'none';
+    }
+    async function aplicarAlinhamentoBPM() {
+      if (!currentPlan) return;
+      const bpmVal = document.getElementById('bpm-input') ? document.getElementById('bpm-input').value : '120';
+      const modeVal = document.getElementById('bpm-mode') ? document.getElementById('bpm-mode').value : 'full_measure';
+      const listEl = document.getElementById('bpm-aligner-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Quantizando cortes de cena na grade de compasso...</div>';
+      try {
+        const res = await fetch('/api/bpm/align', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, bpm: parseFloat(bpmVal), alignment_mode: modeVal })
+        });
+        const data = await res.json();
+        if (data.ok && data.alignment) {
+          const al = data.alignment;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; font-weight:700; color:#8b5cf6;">
+                <span>Grade Musical: ${al.bpm} BPM (${al.alignment_mode})</span>
+                <span>Intervalo: ${al.grid_interval_seconds}s</span>
+              </div>
+              <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">
+                Duração Original: ${al.original_total_duration}s ➔ Nova Duração Alinhada: <b>${al.aligned_total_duration}s</b>
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:8px; color:var(--text-main);">Ajustes de Cena Quantizados:</div>
+          `;
+          al.adjustments.forEach(adj => {
+            html += `
+              <div style="background:rgba(139,92,246,0.06); border:1px solid rgba(139,92,246,0.25); border-radius:6px; padding:8px 12px; margin-bottom:6px; display:flex; justify-content:space-between; font-size:0.85rem;">
+                <span>Cena #${adj.scene_index}: <b>${adj.original_duration}s</b> ➔ <b style="color:#c4b5fd;">${adj.aligned_duration}s</b></span>
+                <span style="color:${adj.delta >= 0 ? '#86efac' : '#fca5a5'}; font-size:0.8rem;">${adj.delta >= 0 ? '+' : ''}${adj.delta}s (${adj.measure_units} compassos)</span>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+          showStatus(`Cenas quantizadas a ${al.bpm} BPM com sucesso!`, '#10b981');
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro ao quantizar BPM: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirTensionCurveModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('tension-curve-modal');
+      const listEl = document.getElementById('tension-curve-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Mapeando curva de tensão narrativa de 3 atos...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/narrative/tension/audit?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.narrative) {
+          const n = data.narrative;
+          let html = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:700; color:#f43f5e; font-size:0.95rem;">Arco Dramático (Jornada do Herói)</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Tensão Média: ${n.average_tension}/100 | Clímax: Cena #${n.climax_scene_index} (${n.peak_tension_score}/100)</div>
+              </div>
+              <span style="font-weight:800; font-size:0.95rem; color:${n.narrative_health === 'EXCELLENT' ? '#10b981' : '#f59e0b'};">${n.narrative_health}</span>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:8px; color:var(--text-main);">Progressão Dramática Cena a Cena:</div>
+          `;
+          n.tension_curve.forEach(pt => {
+            html += `
+              <div style="background:rgba(244,63,94,0.06); border:1px solid rgba(244,63,94,0.25); border-radius:6px; padding:10px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; color:#ffe4e6;">
+                  <span>Cena #${pt.scene_index} — ${pt.act}</span>
+                  <span style="color:#f43f5e;">Tensão: ${pt.tension_score}/100</span>
+                </div>
+                <div style="width:100%; height:6px; background:#1e293b; border-radius:3px; margin-top:6px; overflow:hidden;">
+                  <div style="width:${pt.tension_score}%; height:100%; background:linear-gradient(90deg, #f43f5e, #fb7185); border-radius:3px;"></div>
+                </div>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444;">Erro ao auditar tensão: ${e.message}</div>`;
+      }
+    }
+    function fecharTensionCurveModal() {
+      document.getElementById('tension-curve-modal').style.display = 'none';
+    }
+
+    async function abrirWatermarkModal() {
+      const modal = document.getElementById('watermark-modal');
+      modal.style.display = 'flex';
+    }
+    function fecharWatermarkModal() {
+      document.getElementById('watermark-modal').style.display = 'none';
+    }
+    async function aplicarWatermarkConfig() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const posVal = document.getElementById('wm-pos') ? document.getElementById('wm-pos').value : 'bottom_right';
+      const opVal = document.getElementById('wm-opacity') ? document.getElementById('wm-opacity').value : '0.55';
+      const pathVal = document.getElementById('wm-path') ? document.getElementById('wm-path').value : 'assets/branding/logo_watermark.png';
+
+      try {
+        const res = await fetch('/api/watermark/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: currentPlan.project_id,
+            position: posVal,
+            opacity: parseFloat(opVal),
+            watermark_path: pathVal
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Marca d\'água configurada com sucesso com margens seguras e fade-in gradual.');
+          fecharWatermarkModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar marca d\'água: ' + e.message);
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -4027,6 +4209,101 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Legendas Dinâmicas (Karaoke) -->
+  <div id="dynamic-subtitles-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">💬 Legendas Animadas Dinâmicas (Karaoke .ASS)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharDynamicSubtitlesModal()">&times;</button>
+      </div>
+      <div id="dynamic-subtitles-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDynamicSubtitlesModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Alinhador de Cortes por BPM -->
+  <div id="bpm-aligner-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎵 Alinhador de Cortes na Grade Musical (BPM)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharBPMAlignerModal()">&times;</button>
+      </div>
+      <div style="padding:14px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); display:flex; gap:16px; align-items:center;">
+        <div>
+          <label style="font-size:0.8rem; color:var(--text-muted);">BPM da Trilha:</label>
+          <input type="number" id="bpm-input" value="120" style="width:80px; padding:6px; background:#0f172a; border:1px solid var(--border); border-radius:4px; color:#fff; font-size:0.85rem;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem; color:var(--text-muted);">Modo de Alinhamento:</label>
+          <select id="bpm-mode" style="padding:6px; background:#0f172a; border:1px solid var(--border); border-radius:4px; color:#fff; font-size:0.85rem;">
+            <option value="full_measure">Compasso Inteiro (4 Tempos)</option>
+            <option value="two_measures">Dois Compassos (8 Tempos Épicos)</option>
+            <option value="quarter_note">Semínima (1 Tempo Rápido)</option>
+          </select>
+        </div>
+        <button class="btn" style="background:#8b5cf6; color:#fff; font-weight:700; margin-top:16px;" onclick="aplicarAlinhamentoBPM()">Quantizar Cenas</button>
+      </div>
+      <div id="bpm-aligner-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharBPMAlignerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Curva de Tensão (3 Atos) -->
+  <div id="tension-curve-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📈 Curva de Tensão Narrativa (Hollywood 3-Act Arc)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharTensionCurveModal()">&times;</button>
+      </div>
+      <div id="tension-curve-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharTensionCurveModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Marca d'Água & Anti-Pirataria -->
+  <div id="watermark-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🛡️ Marca d'Água de Branding & Proteção Copyright</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharWatermarkModal()">&times;</button>
+      </div>
+      <div style="padding:20px; display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <label style="font-size:0.85rem; color:var(--text-muted);">Caminho do Arquivo de Logo (PNG Transparente):</label>
+          <input type="text" id="wm-path" value="assets/branding/logo_watermark.png" style="width:100%; padding:8px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#fff; font-size:0.85rem; margin-top:4px;">
+        </div>
+        <div style="display:flex; gap:16px;">
+          <div style="flex:1;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Posição na Tela:</label>
+            <select id="wm-pos" style="width:100%; padding:8px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#fff; font-size:0.85rem; margin-top:4px;">
+              <option value="bottom_right">Canto Inferior Direito (Padrão)</option>
+              <option value="top_right">Canto Superior Direito</option>
+              <option value="bottom_left">Canto Inferior Esquerdo</option>
+              <option value="top_left">Canto Superior Esquerdo</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Opacidade (0.1 a 1.0):</label>
+            <input type="number" id="wm-opacity" step="0.05" min="0.1" max="1.0" value="0.55" style="width:100%; padding:8px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#fff; font-size:0.85rem; margin-top:4px;">
+          </div>
+        </div>
+        <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.25); border-radius:6px; padding:10px; font-size:0.82rem; color:#a7f3d0; margin-top:4px;">
+          🔒 O filtro aplicará Safe Margin de 35px para não colidir com controles do player do YouTube, além de fade-in transparente suave de 1.5s.
+        </div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn" style="background:#10b981; color:#0f172a; font-weight:700;" onclick="aplicarWatermarkConfig()">Aplicar Marca d'Água</button>
+        <button class="btn btn-secondary" onclick="fecharWatermarkModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -4740,6 +5017,28 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
             dropoff_data = AudienceDropoffPredictor.predict_dropoff_hotspots(plan)
             return self.send_json({"ok": True, "dropoff": dropoff_data})
+        elif self.path.startswith("/api/subtitles/karaoke/generate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            style_name = params.get("style", ["hormozi_bold_yellow"])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            sub_data = DynamicSubtitlesWordHighlighter.generate_ass_subtitle_content(plan, style_name)
+            return self.send_json({"ok": True, "subtitles": sub_data})
+        elif self.path.startswith("/api/narrative/tension/audit"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            tension_data = NarrativeTensionCurveAuditor.audit_narrative_tension(plan)
+            return self.send_json({"ok": True, "narrative": tension_data})
+        elif self.path.startswith("/api/watermark/positions"):
+            corners = AutoVideoWatermarkBrandingDirector.get_corner_positions()
+            return self.send_json({"ok": True, "positions": corners})
         else:
             self.send_response(404)
             self.end_headers()
@@ -5809,6 +6108,27 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             proj_id = data.get("project_id", "default")
             AutoRenderCrashRecoveryGuard.clear_checkpoint(proj_id)
             return self.send_json({"ok": True, "message": "Checkpoint descartado com sucesso."})
+        elif self.path == "/api/bpm/align":
+            proj_id = data.get("project_id")
+            bpm = float(data.get("bpm", 120.0))
+            mode = data.get("alignment_mode", "full_measure")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            align_res = SmartVisualPacingBPMAligner.align_scenes_to_bpm(plan, bpm=bpm, alignment_mode=mode)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, "alignment": align_res})
+        elif self.path == "/api/watermark/apply":
+            proj_id = data.get("project_id")
+            wm_path = data.get("watermark_path", "assets/branding/logo_watermark.png")
+            position = data.get("position", "bottom_right")
+            opacity = float(data.get("opacity", 0.55))
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            wm_res = AutoVideoWatermarkBrandingDirector.apply_watermark_to_plan(plan, wm_path, position, opacity)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **wm_res})
         else:
             self.send_response(404)
             self.end_headers()
