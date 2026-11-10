@@ -240,6 +240,10 @@ def audit_system():
         "analysis.scene_pacing_auditor",
         "analysis.script_tone_polisher",
         "editing.safe_zone_framing",
+        "audio.audio_stem_splitter",
+        "pipeline.clickbait_title_generator",
+        "editing.broll_bouncer",
+        "storage.project_packager_zip",
     ]
 
     for mod_name in modules_to_test:

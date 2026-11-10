@@ -55,6 +55,10 @@
 - **Auditoria de Ritmo & Retenção de Público (`ScenePacingAuditor`):** Análise de velocidade de fala em WPM (palavras por minuto), alertas de cenas estáticas monótonas e sugestões automáticas de corte dinâmico.
 - **Polidor de Tom de Roteiro com IA (`ScriptTonePolisher`):** Refatora o roteiro com 1 clique para formatos virais de alta retenção (Shorts/TikTok), documentários clássicos estilo BBC, mistério ou didático.
 - **Safe Zones para Vídeos Verticais (`SafeZoneMultiFormatFraming`):** Enquadramento e overlay 9:16 que garante que legendas e elementos visuais nunca sejam tapados pelos botões do TikTok, Shorts e Reels.
+- **Mixer de Stems de Áudio Isolados (`AudioStemSplitter`):** Separação em 3 pistas discretas a 48kHz / 24-bit (Voz limpa, Trilha Sonora e Foley SFX) para flexibilidade de pós-produção em DAWs e no Drift.
+- **Gerador de Títulos de Alto CTR & Selos de Thumbnail (`ClickbaitTitleHookGenerator`):** Cria 5 fórmulas de títulos virais e palavras de impacto para capa (ex: "A VERDADE", "O ERRO FATAL") aumentando a taxa de clique no YouTube.
+- **Alternador Dinâmico de Cutaways B-Roll (`BrollBouncer`):** Injeta cortes B-Roll secundários automáticos em cenas de longa duração (> 4.5s) mantendo ritmo ininterrupto e eliminando tédio visual.
+- **Empacotador de Projeto em 1-Clique .ZIP (`ProjectPackagerZip`):** Exporta um arquivo consolidado contendo timeline `.drift`, áudios WAV, legendas `.ass`, capítulos e manifesto de licenças para backup e compartilhamento entre máquinas.
 
 ---
 </div>

@@ -58,6 +58,10 @@ from audio.smart_audio_denoise_enhancer import SmartAudioDenoiseEnhancer
 from analysis.scene_pacing_auditor import ScenePacingAuditor
 from analysis.script_tone_polisher import ScriptTonePolisher
 from editing.safe_zone_framing import SafeZoneMultiFormatFraming
+from audio.audio_stem_splitter import AudioStemSplitter
+from pipeline.clickbait_title_generator import ClickbaitTitleHookGenerator
+from editing.broll_bouncer import BrollBouncer
+from storage.project_packager_zip import ProjectPackagerZip
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -276,6 +280,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#c084fc; color:#e9d5ff; font-weight:600;" onclick="abrirFoleySonoro()">🔊 Foley & Efeitos Sonoros (SFX)</button>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0; font-weight:600;" onclick="abrirAuditoriaRitmo()">⚡ Auditoria de Ritmo & WPM</button>
       <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fde047; font-weight:600;" onclick="abrirPolidorTom()">✍️ Polidor de Tom de Roteiro</button>
+      <button class="btn btn-secondary" style="border-color:#ec4899; color:#f472b6; font-weight:600;" onclick="abrirGeradorTitulos()">🎣 Títulos Virais & Thumbnails (CTR)</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#bae6fd; font-weight:600;" onclick="abrirStemsMixer()">🎛️ Stems de Áudio Separados</button>
+      <button class="btn btn-secondary" style="border-color:#a855f7; color:#d8b4fe; font-weight:600;" onclick="injetarCutawaysBroll()">🎬 Injetar Cutaways B-Roll (Anti-Tédio)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#6ee7b7; font-weight:700;" onclick="baixarPacoteZip()">📦 Baixar Pacote Completo (.ZIP)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -1296,7 +1304,162 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao polir roteiro: ' + e);
       }
     }
+
+    async function abrirGeradorTitulos() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      const res = await fetch(`/api/titles/generate?project_id=${currentPlan.project_id}`);
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('titles-topic-badge').innerText = `Tópico Base: ${data.base_topic}`;
+        const container = document.getElementById('titles-list-container');
+        container.innerHTML = data.titles.map(t => `
+          <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:#93c5fd; font-weight:700;">${t.category.toUpperCase()}</span>
+              <span style="background:#065f46; color:#a7f3d0; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:700;">CTR Estimado: ${t.estimated_ctr}</span>
+            </div>
+            <div style="font-size:0.95rem; font-weight:700; color:#fff; line-height:1.4;">${t.headline}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Selo Thumbnail: <b style="color:#fde047;">"${t.thumbnail_hook}"</b></span>
+              <button class="btn btn-secondary" style="padding:4px 10px; font-size:0.75rem;" onclick="aplicarTituloSugerido('${encodeURIComponent(t.headline)}')">Adotar Este Título</button>
+            </div>
+          </div>
+        `).join('');
+
+        const badgesEl = document.getElementById('thumbnail-badges-container');
+        badgesEl.innerHTML = data.thumbnail_badge_options.map(b => `<span style="background:#701a75; color:#f5d0fe; padding:4px 10px; border-radius:4px; font-weight:800; font-size:0.75rem;">${b}</span>`).join(' ');
+
+        document.getElementById('titles-modal').style.display = 'flex';
+      }
+    }
+    function fecharGeradorTitulos() {
+      document.getElementById('titles-modal').style.display = 'none';
+    }
+    function aplicarTituloSugerido(encodedTitle) {
+      const title = decodeURIComponent(encodedTitle);
+      if (currentPlan) {
+        currentPlan.title = title;
+        document.getElementById('project-header').innerText = `Projeto: ${title}`;
+        fecharGeradorTitulos();
+        showStatus(`Título atualizado para: "${title}"`, '#059669');
+        setTimeout(() => { document.getElementById('status-banner').style.display = 'none'; }, 3000);
+      }
+    }
+
+    async function abrirStemsMixer() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      const res = await fetch(`/api/stems/manifest?project_id=${currentPlan.project_id}`);
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('stems-modal').style.display = 'flex';
+      }
+    }
+    function fecharStemsMixer() {
+      document.getElementById('stems-modal').style.display = 'none';
+    }
+
+    async function injetarCutawaysBroll() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      showStatus('Analisando cenas e agendando cutaways B-Roll...', '#d97706');
+      try {
+        const res = await fetch('/api/broll/bounce', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, threshold_sec: 4.5 })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Sucesso! ${data.cutaways_injected} cortes de B-Roll cutaway injetados (+${data.retention_boost_estimate_pct}% retenção estimada).`, '#059669');
+          setTimeout(() => { document.getElementById('status-banner').style.display = 'none'; }, 4000);
+        }
+      } catch (e) {
+        alert('Erro ao injetar B-Roll: ' + e);
+      }
+    }
+
+    async function baixarPacoteZip() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      showStatus('Empacotando projeto completo em arquivo .ZIP...', '#2563eb');
+      try {
+        const res = await fetch('/api/project/package_zip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Pacote ZIP criado com sucesso! ${data.file_count} arquivos em: ${data.zip_path}`, '#059669');
+          alert(`Pacote do projeto compactado com sucesso!\n\nArquivo: ${data.zip_path}\nTotal de Arquivos: ${data.file_count}\nTamanho Compactado: ${(data.compressed_bytes / (1024*1024)).toFixed(2)} MB`);
+        }
+      } catch (e) {
+        alert('Erro ao empacotar projeto: ' + e);
+      }
+    }
   </script>
+
+  <!-- Modal de Títulos Virais & Thumbnails -->
+  <div id="titles-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:720px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎣 Gerador de Títulos Virais & Thumbnails (Alto CTR)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharGeradorTitulos()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span id="titles-topic-badge" style="background:#1e3a8a; color:#bfdbfe; font-size:0.8rem; padding:4px 10px; border-radius:12px; font-weight:700;">Tópico: Carregando...</span>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Baseado em Fórmulas Psicológicas do YouTube</span>
+        </div>
+        <div id="titles-list-container" style="display:flex; flex-direction:column; gap:10px;"></div>
+        <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; margin-top:6px;">
+          <div style="font-size:0.8rem; color:#94a3b8; font-weight:700; margin-bottom:8px;">🔥 Selos de Impacto para Estampar na Thumbnail:</div>
+          <div id="thumbnail-badges-container" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        </div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharGeradorTitulos()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Stems Mixer -->
+  <div id="stems-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:640px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎛️ Mixer de Stems Isolados (Multi-Pista)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharStemsMixer()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:0.85rem; color:var(--text-muted);">Três pistas independentes masterizadas a 48kHz / 24-bit para interoperabilidade com DaVinci Resolve, Premiere e Drift:</div>
+        
+        <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; color:#fff;">🎙️ Pista 1: Voz & Narração (Dialogue)</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Voz neural limpa com isolamento acústico</div>
+          </div>
+          <span style="background:#065f46; color:#a7f3d0; padding:2px 8px; border-radius:4px; font-weight:700; font-size:0.8rem;">0.0 dB (Master)</span>
+        </div>
+
+        <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; color:#fff;">🎵 Pista 2: Trilha Sonora (Soundtrack)</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Música de fundo com ducking dinâmico automático</div>
+          </div>
+          <span style="background:#1e3a8a; color:#bfdbfe; padding:2px 8px; border-radius:4px; font-weight:700; font-size:0.8rem;">-14.0 dB</span>
+        </div>
+
+        <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; color:#fff;">🔊 Pista 3: Efeitos Sonoros & Foley (SFX)</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Micro-efeitos sincronizados aos timestamps das ações</div>
+          </div>
+          <span style="background:#581c87; color:#e9d5ff; padding:2px 8px; border-radius:4px; font-weight:700; font-size:0.8rem;">-16.0 dB</span>
+        </div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharStemsMixer()">Fechar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal de Auditoria de Ritmo & WPM -->
   <div id="pacing-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
@@ -1554,6 +1717,34 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "aspect_ratio": ratio,
                 "bounds": bounds,
                 "css_overlay": css_guide
+            })
+        elif self.path.startswith("/api/titles/generate"):
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            titles_pkg = ClickbaitTitleHookGenerator.generate_title_package(plan)
+            return self.send_json({"ok": True, **titles_pkg})
+        elif self.path.startswith("/api/stems/manifest"):
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            manifest = AudioStemSplitter.create_default_mixer_manifest(plan)
+            filter_str = AudioStemSplitter.generate_ffmpeg_stem_filter(manifest)
+            return self.send_json({
+                "ok": True,
+                "project_id": manifest.project_id,
+                "sample_rate_hz": manifest.sample_rate_hz,
+                "bit_depth": manifest.bit_depth,
+                "tracks": [t.__dict__ for t in manifest.tracks],
+                "ffmpeg_filter": filter_str
             })
         elif self.path.startswith("/api/adaptive_crf"):
             import urllib.parse
@@ -2635,6 +2826,32 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             ScriptTonePolisher.polish_plan(plan, tone_id)
             self.repo.save(plan)
             return self.send_json({"ok": True, "plan": plan.to_dict()})
+
+        elif self.path == "/api/broll/bounce":
+            project_id = data.get("project_id")
+            threshold_sec = float(data.get("threshold_sec", 4.5))
+            plan = self.repo.get(project_id)
+            if not plan:
+                return self.send_json({"ok": False, "error": "Not found"}, 404)
+            result = BrollBouncer.apply_cutaways_to_plan(plan, threshold_sec=threshold_sec)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **result})
+
+        elif self.path == "/api/project/package_zip":
+            project_id = data.get("project_id")
+            plan = self.repo.get(project_id)
+            if not plan:
+                return self.send_json({"ok": False, "error": "Not found"}, 404)
+            res = ProjectPackagerZip.package_project(plan)
+            return self.send_json({
+                "ok": True,
+                "project_id": res.project_id,
+                "zip_path": res.zip_path,
+                "file_count": res.file_count,
+                "compressed_bytes": res.compressed_bytes,
+                "uncompressed_bytes": res.uncompressed_bytes,
+                "included_files": res.included_files
+            })
         else:
             self.send_response(404)
             self.end_headers()

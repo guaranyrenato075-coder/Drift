@@ -159,6 +159,7 @@ class ProjectConfig:
     background_music_path: Optional[str] = None
     auto_ducking: bool = True
     music_volume: float = 0.15
+    extra: Dict[str, Any] = field(default_factory=dict)
 
     def update_resolution(self):
         if self.aspect_ratio == "9:16":
