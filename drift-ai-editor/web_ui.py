@@ -110,6 +110,10 @@ from editing.cinematic_lower_thirds_animator import CinematicLowerThirdsAnimator
 from analysis.visual_symmetry_aesthetic_auditor import VisualSymmetryAestheticAuditor
 from audio.stereo_to_51_surround_upmixer import StereoTo51SurroundUpmixer
 from pipeline.auto_color_palette_mood_extractor import AutoColorPaletteMoodExtractor
+from editing.nle_timeline_xml_edl_exporter import NLETimelineXMLEdlExporter
+from audio.dynamic_audio_ducking_sidechain_engine import DynamicAudioDuckingSidechainEngine
+from pipeline.youtube_thumbnail_ab_grid_renderer import YouTubeThumbnailABGridRenderer
+from core.desktop_launcher_daemon_packager import DesktopLauncherDaemonPackager
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -380,6 +384,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirSymmetryModal()">📐 Auditoria Estética & Simetria</button>
       <button class="btn btn-secondary" style="border-color:#6366f1; color:#e0e7ff; font-weight:600;" onclick="abrirSurroundModal()">🔊 Áudio Surround 5.1 (Cinema)</button>
       <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirPaletteModal()">🎨 Paleta Cromática de Humor</button>
+      <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirNLEModal()">🎬 Exportar NLE (DaVinci/Premiere)</button>
+      <button class="btn btn-secondary" style="border-color:#14b8a6; color:#ccfbf1; font-weight:600;" onclick="abrirDuckingModal()">🎚️ Sidechain Audio Ducking</button>
+      <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirThumbnailsABModal()">🖼️ Grade A/B de Thumbnails</button>
+      <button class="btn btn-secondary" style="border-color:#22c55e; color:#dcfce7; font-weight:600;" onclick="gerarLauncherDesktop()">⚡ Gerar Launcher Desktop 1-Clique</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -3832,6 +3840,164 @@ O Segredo do Foco Profundo</textarea>
     function fecharPaletteModal() {
       document.getElementById('palette-modal').style.display = 'none';
     }
+
+    // NLE Exporter
+    function abrirNLEModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      document.getElementById('nle-modal').style.display = 'flex';
+    }
+    function fecharNLEModal() {
+      document.getElementById('nle-modal').style.display = 'none';
+    }
+    async function exportarNLETimeline() {
+      if (!currentPlan) return;
+      const fps = document.getElementById('nle-fps') ? document.getElementById('nle-fps').value : '30';
+      const resEl = document.getElementById('nle-result');
+      resEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Gerando EDL CMX 3600 e XML Final Cut/Premiere...</div>';
+      try {
+        const res = await fetch(`/api/nle/export?project_id=${currentPlan.project_id}&fps=${fps}`);
+        const data = await res.json();
+        if (data.ok && data.export) {
+          const exp = data.export;
+          resEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="color:#22c55e; font-weight:700;">✅ Linhas do tempo geradas com sucesso!</div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:6px 0;">Cortes: ${exp.scene_count} cenas | Duração total: ${exp.total_duration_sec}s | Taxa: ${exp.fps} fps</div>
+              <div style="margin-top:8px; font-size:0.8rem; font-family:monospace; color:#fde047; word-break:break-all;">
+                📄 EDL: ${exp.files.cmx3600_edl}<br>
+                🎞️ XML Premiere/DaVinci: ${exp.files.premiere_davinci_xml}
+              </div>
+            </div>
+          `;
+        } else {
+          resEl.innerHTML = `<div style="color:#ef4444;">Erro: ${data.error || 'Falha ao exportar'}</div>`;
+        }
+      } catch (e) {
+        resEl.innerHTML = `<div style="color:#ef4444;">Erro de conexão: ${e.message}</div>`;
+      }
+    }
+
+    // Audio Ducking Sidechain
+    function abrirDuckingModal() {
+      document.getElementById('ducking-modal').style.display = 'flex';
+      calcularDuckingPreview();
+    }
+    function fecharDuckingModal() {
+      document.getElementById('ducking-modal').style.display = 'none';
+    }
+    async function calcularDuckingPreview() {
+      const preset = document.getElementById('ducking-preset') ? document.getElementById('ducking-preset').value : 'broadcast_standard';
+      const contentEl = document.getElementById('ducking-preview-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando curva dinâmica de atenuação...</div>';
+      try {
+        const res = await fetch(`/api/audio/ducking/preview?preset=${preset}`);
+        const data = await res.json();
+        if (data.ok && data.ducking) {
+          const d = data.ducking;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="font-weight:700; color:#14b8a6;">Preset: ${d.preset_applied}</div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:4px 0;">${d.config.description}</div>
+              <div style="display:flex; gap:12px; margin-top:8px; font-size:0.8rem;">
+                <span style="color:#67e8f9;">Atenuação: ${d.config.ducking_depth_db}dB</span>
+                <span style="color:#a7f3d0;">Ataque: ${d.config.attack_ms}ms</span>
+                <span style="color:#fde047;">Release: ${d.config.release_ms}ms</span>
+                <span style="color:#c4b5fd;">Ratio: ${d.config.ratio}:1</span>
+              </div>
+              <div style="margin-top:10px; font-weight:700; font-size:0.8rem; color:var(--text-main);">Filtro FFmpeg Sidechain:</div>
+              <textarea readonly style="width:100%; height:60px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:#5eead4; font-size:0.75rem; padding:6px; font-family:monospace; resize:none;">${d.sidechain_filter}</textarea>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular: ${e.message}</div>`;
+      }
+    }
+    async function aplicarDuckingSidechain() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const preset = document.getElementById('ducking-preset') ? document.getElementById('ducking-preset').value : 'broadcast_standard';
+      try {
+        const res = await fetch('/api/audio/ducking/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, preset: preset })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Configuração de sidechain ducking aplicada com sucesso ao projeto!');
+          fecharDuckingModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar: ' + e.message);
+      }
+    }
+
+    // Thumbnails A/B Grid
+    function abrirThumbnailsABModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      document.getElementById('thumbnails-ab-modal').style.display = 'flex';
+      gerarThumbnailsAB();
+    }
+    function fecharThumbnailsABModal() {
+      document.getElementById('thumbnails-ab-modal').style.display = 'none';
+    }
+    async function gerarThumbnailsAB() {
+      if (!currentPlan) return;
+      const contentEl = document.getElementById('thumbnails-ab-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Gerando variações estratégicas A/B/C/D para CTR máximo...</div>';
+      try {
+        const res = await fetch(`/api/thumbnails/ab_grid?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.ab_grid) {
+          const g = data.ab_grid;
+          let cardsHtml = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;">';
+          g.matrix.forEach(v => {
+            cardsHtml += `
+              <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:700; color:#c084fc; font-size:0.9rem;">${v.name}</span>
+                  <span style="background:rgba(34,197,94,0.2); color:#4ade80; font-size:0.75rem; padding:2px 6px; border-radius:4px; font-weight:700;">${v.estimated_ctr_boost}</span>
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-muted);">${v.visual_style}</div>
+                <div style="background:#111827; border:1px solid #374151; border-radius:6px; padding:6px; font-size:0.8rem; color:#fde047;">
+                  Texto na Thumb: <b>"${v.suggested_overlay_text}"</b>
+                </div>
+                <div style="font-size:0.75rem; color:#9ca3af;">Público-Alvo: ${v.optimal_audience}</div>
+              </div>
+            `;
+          });
+          cardsHtml += '</div>';
+
+          contentEl.innerHTML = `
+            <div>
+              <div style="font-size:0.85rem; color:var(--text-muted);">${g.testing_protocol}</div>
+              ${cardsHtml}
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao gerar variações: ${e.message}</div>`;
+      }
+    }
+
+    // Desktop Launcher
+    async function gerarLauncherDesktop() {
+      try {
+        const res = await fetch('/api/launcher/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ port: 8765 })
+        });
+        const data = await res.json();
+        if (data.ok && data.launcher) {
+          alert(`⚡ Launchers de 1 clique gerados com sucesso!\n\nArquivo .BAT: ${data.launcher.batch_launcher}\nArquivo PowerShell: ${data.launcher.powershell_launcher}\n\nVocê pode dar um duplo clique no arquivo .bat para abrir o Drift AI Studio sem abrir o terminal!`);
+        } else {
+          alert('Erro ao gerar launcher: ' + (data.error || 'Falha'));
+        }
+      } catch (e) {
+        alert('Erro ao requisitar launcher: ' + e.message);
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -4821,6 +4987,75 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Exportador NLE -->
+  <div id="nle-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:620px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎬 Exportar Timeline NLE (Premiere / DaVinci Resolve)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharNLEModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:0.85rem; color:var(--text-muted);">
+          Exporte o projeto montado diretamente para arquivos XML (Final Cut Pro / DaVinci Resolve) e EDL CMX 3600 para finalizar a pós-produção na sua suíte favorita.
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Taxa de Quadros (FPS):</label>
+          <select id="nle-fps" style="padding:6px 10px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;">
+            <option value="24">24.0 fps (Cinema)</option>
+            <option value="29.97">29.97 fps (NTSC)</option>
+            <option value="30" selected>30.0 fps (Web / YouTube)</option>
+            <option value="60">60.0 fps (High Motion)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="exportarNLETimeline()">Exportar Arquivos NLE Agora</button>
+        <div id="nle-result" style="margin-top:10px;"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharNLEModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Sidechain Ducking -->
+  <div id="ducking-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:640px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎚️ Dynamic Sidechain Audio Ducking</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharDuckingModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Perfil de Ducking:</label>
+          <select id="ducking-preset" style="padding:6px 10px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularDuckingPreview()">
+            <option value="broadcast_standard" selected>Broadcast Padrão (-16dB)</option>
+            <option value="cinematic_dramatic">Cinematográfico Dramático (-20dB)</option>
+            <option value="youtube_fast_paced">YouTube Ágil / Ritmo Alto (-14dB)</option>
+            <option value="subtle_documentary">Documentário Suave (-10dB)</option>
+          </select>
+        </div>
+        <div id="ducking-preview-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDuckingModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="aplicarDuckingSidechain()">Aplicar Ducking ao Roteiro</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Grade A/B de Thumbnails -->
+  <div id="thumbnails-ab-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:780px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🖼️ Matriz Estratégica A/B/C/D de Thumbnails</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharThumbnailsABModal()">&times;</button>
+      </div>
+      <div id="thumbnails-ab-content" style="padding:20px; overflow-y:auto; flex:1;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharThumbnailsABModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -5622,6 +5857,49 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
             pal_data = AutoColorPaletteMoodExtractor.extract_palette_from_plan(plan)
             return self.send_json({"ok": True, "palette": pal_data})
+        elif self.path.startswith("/api/nle/export"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            fps_val = float(params.get("fps", [30.0])[0])
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            import tempfile
+            out_dir = os.path.join(tempfile.gettempdir(), "drift_nle_exports")
+            scene_list = [
+                {
+                    "duration": getattr(sc, "duration", 4.0),
+                    "concept": getattr(sc, "concept", f"Cena {getattr(sc, 'order', idx)}"),
+                    "clip_name": f"Scene_{idx:02d}.mp4"
+                }
+                for idx, sc in enumerate(plan.scenes, 1)
+            ]
+            exp_data = NLETimelineXMLEdlExporter.export_all_formats(
+                project_name=plan.title or "Drift_Project",
+                scenes=scene_list,
+                output_dir=out_dir,
+                fps=fps_val
+            )
+            return self.send_json({"ok": True, "export": exp_data})
+        elif self.path.startswith("/api/audio/ducking/preview"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            preset_name = params.get("preset", ["broadcast_standard"])[0]
+            duck_data = DynamicAudioDuckingSidechainEngine.calculate_ducking_filter(preset=preset_name)
+            return self.send_json({"ok": True, "ducking": duck_data})
+        elif self.path.startswith("/api/thumbnails/ab_grid"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            grid_data = YouTubeThumbnailABGridRenderer.generate_ab_test_matrix(
+                video_title=plan.title or "Vídeo Drift IA",
+                keywords=getattr(plan, "keywords", ["Cinema", "Drift", "IA"])
+            )
+            return self.send_json({"ok": True, "ab_grid": grid_data})
         else:
             self.send_response(404)
             self.end_headers()
@@ -6730,6 +7008,23 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             surr_res = StereoTo51SurroundUpmixer.apply_51_upmix_to_plan(plan, center_dialogue_boost_db=boost)
             self.repo.save(plan)
             return self.send_json({"ok": True, **surr_res})
+        elif self.path == "/api/audio/ducking/apply":
+            proj_id = data.get("project_id")
+            preset_name = data.get("preset", "broadcast_standard")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            duck_calc = DynamicAudioDuckingSidechainEngine.calculate_ducking_filter(preset=preset_name)
+            if not hasattr(plan, "metadata") or plan.metadata is None:
+                plan.metadata = {}
+            plan.metadata["sidechain_ducking"] = duck_calc
+            self.repo.save(plan)
+            return self.send_json({"ok": True, "sidechain_ducking": duck_calc})
+        elif self.path == "/api/launcher/deploy":
+            port_val = int(data.get("port", 8765))
+            cur_dir = os.path.dirname(os.path.abspath(__file__))
+            launch_res = DesktopLauncherDaemonPackager.deploy_desktop_launchers(cur_dir, port=port_val)
+            return self.send_json({"ok": True, "launcher": launch_res})
         else:
             self.send_response(404)
             self.end_headers()

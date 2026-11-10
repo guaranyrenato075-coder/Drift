@@ -292,6 +292,10 @@ def audit_system():
         "analysis.visual_symmetry_aesthetic_auditor",
         "audio.stereo_to_51_surround_upmixer",
         "pipeline.auto_color_palette_mood_extractor",
+        "editing.nle_timeline_xml_edl_exporter",
+        "audio.dynamic_audio_ducking_sidechain_engine",
+        "pipeline.youtube_thumbnail_ab_grid_renderer",
+        "core.desktop_launcher_daemon_packager",
     ]
 
     for mod_name in modules_to_test:
