@@ -62,6 +62,10 @@ from audio.audio_stem_splitter import AudioStemSplitter
 from pipeline.clickbait_title_generator import ClickbaitTitleHookGenerator
 from editing.broll_bouncer import BrollBouncer
 from storage.project_packager_zip import ProjectPackagerZip
+from editing.subtitle_styler import AITranscriptionSubtitleStyler
+from editing.smart_transition_director import SmartSceneTransitionDirector
+from pipeline.shorts_extractor import ContentRepurposerShortsExtractor
+from pipeline.thumbnail_composer import AutoThumbnailVisualComposer
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -284,6 +288,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#38bdf8; color:#bae6fd; font-weight:600;" onclick="abrirStemsMixer()">🎛️ Stems de Áudio Separados</button>
       <button class="btn btn-secondary" style="border-color:#a855f7; color:#d8b4fe; font-weight:600;" onclick="injetarCutawaysBroll()">🎬 Injetar Cutaways B-Roll (Anti-Tédio)</button>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#6ee7b7; font-weight:700;" onclick="baixarPacoteZip()">📦 Baixar Pacote Completo (.ZIP)</button>
+      <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fde047; font-weight:600;" onclick="abrirEstilosLegenda()">✨ Estilos de Legenda (.ASS)</button>
+      <button class="btn btn-secondary" style="border-color:#3b82f6; color:#93c5fd; font-weight:600;" onclick="abrirDiretorTransicoes()">🎭 Diretor de Transições</button>
+      <button class="btn btn-secondary" style="border-color:#ec4899; color:#f472b6; font-weight:600;" onclick="abrirExtratorShorts()">✂️ Extrair Cortes Shorts (9:16)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#a7f3d0; font-weight:600;" onclick="comporThumbnailVisual()">🖼️ Gerar Thumbnail Visual HD</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -1395,7 +1403,167 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao empacotar projeto: ' + e);
       }
     }
+
+    function abrirEstilosLegenda() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      document.getElementById('subtitles-style-modal').style.display = 'flex';
+    }
+    function fecharEstilosLegenda() {
+      document.getElementById('subtitles-style-modal').style.display = 'none';
+    }
+    async function aplicarEstiloLegenda() {
+      if (!currentPlan) return;
+      const styleId = document.getElementById('sub-style-select').value;
+      showStatus('Gerando legendas (.ASS) estilizadas...', '#2563eb');
+      try {
+        const res = await fetch('/api/subtitles/generate_styled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, style_id: styleId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          fecharEstilosLegenda();
+          showStatus(`Legendas ${styleId.toUpperCase()} geradas com sucesso!`, '#059669');
+          setTimeout(() => { document.getElementById('status-banner').style.display = 'none'; }, 3500);
+          alert(`Legendas dinâmicas exportadas com sucesso!\n\nArquivo: ${data.file_path || 'legendas.ass'}\nEstilo: ${data.style_name}`);
+        }
+      } catch (e) {
+        alert('Erro ao gerar legendas: ' + e);
+      }
+    }
+
+    async function abrirDiretorTransicoes() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      const res = await fetch(`/api/transitions/plan?project_id=${currentPlan.project_id}`);
+      const data = await res.json();
+      if (data.ok) {
+        const list = document.getElementById('transitions-plan-list');
+        if (!data.transitions || data.transitions.length === 0) {
+          list.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Adicione pelo menos 2 cenas para orquestrar transições.</div>';
+        } else {
+          list.innerHTML = data.transitions.map(t => `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:700; color:#fff;">Cena ${t.from_scene_order} ➔ Cena ${t.to_scene_order}: <span style="color:#60a5fa;">${t.transition_type.toUpperCase()}</span> (${t.duration_sec}s)</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${t.narrative_reason}</div>
+              </div>
+            </div>
+          `).join('');
+        }
+        document.getElementById('transitions-modal').style.display = 'flex';
+      }
+    }
+    function fecharDiretorTransicoes() {
+      document.getElementById('transitions-modal').style.display = 'none';
+    }
+
+    async function abrirExtratorShorts() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      const res = await fetch(`/api/shorts/extract?project_id=${currentPlan.project_id}`);
+      const data = await res.json();
+      if (data.ok) {
+        const list = document.getElementById('shorts-extract-list');
+        if (!data.shorts || data.shorts.length === 0) {
+          list.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:15px;">Roteiro muito curto para extração de Shorts múltiplos.</div>';
+        } else {
+          list.innerHTML = data.shorts.map(s => `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#fff;">${s.title}</span>
+                <span style="background:#065f46; color:#a7f3d0; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:700;">Score Viral: ${s.viral_hook_score}/100</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">Cenas ${s.start_scene_order} a ${s.end_scene_order} | Duração: ${s.total_duration_sec}s | Formato: 9:16 Vertical</div>
+              <div style="font-size:0.75rem; color:#93c5fd;">Tags: ${s.recommended_hashtags}</div>
+            </div>
+          `).join('');
+        }
+        document.getElementById('shorts-extractor-modal').style.display = 'flex';
+      }
+    }
+    function fecharExtratorShorts() {
+      document.getElementById('shorts-extractor-modal').style.display = 'none';
+    }
+
+    async function comporThumbnailVisual() {
+      if (!currentPlan) return alert('Analise o roteiro primeiro!');
+      showStatus('Renderizando capa/thumbnail visual em alta resolução 1280x720...', '#7c3aed');
+      try {
+        const res = await fetch('/api/thumbnail/compose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id, headline_text: 'A VERDADE' })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus(`Thumbnail gerada com sucesso! Arquivo: ${data.output_image_path}`, '#059669');
+          alert(`Thumbnail 1280x720 composta com sucesso!\n\nArquivo: ${data.output_image_path}\nTexto: "${data.headline_text}"\nHero Platform: ${data.hero_platform}`);
+        }
+      } catch (e) {
+        alert('Erro ao compor thumbnail: ' + e);
+      }
+    }
   </script>
+
+  <!-- Modal de Estilos de Legenda -->
+  <div id="subtitles-style-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:560px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">✨ Estilos Visuais de Legenda Dinâmica (.ASS)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharEstilosLegenda()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="font-size:0.85rem; color:var(--text-muted);">Selecione o design tipográfico para as legendas karaokê:</div>
+        <select id="sub-style-select" style="padding:10px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px; font-size:0.9rem;">
+          <option value="hormozi_viral" selected>🔥 Hormozi / MrBeast Pop (Amarelo + Verde, Contorno Preto Grosso)</option>
+          <option value="neon_glow">⚡ Neon Glow (Ciano & Magenta Cyberpunk)</option>
+          <option value="cinema_classic">🎬 Cinema Classic (Netflix / Documentário Elegante)</option>
+          <option value="minimalist_clean">💎 Minimalist Clean (Contemporâneo & Discreto)</option>
+        </select>
+        <div style="font-size:0.8rem; color:#94a3b8; line-height:1.4; background:var(--card-bg); padding:10px; border-radius:6px; border:1px solid var(--border);">
+          💡 <b>Impacto:</b> O estilo <b>Hormozi / MrBeast</b> eleva a retenção em vídeos de formato vertical destacando a primeira palavra com cor contrastante.
+        </div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharEstilosLegenda()">Cancelar</button>
+        <button class="btn btn-success" onclick="aplicarEstiloLegenda()">✨ Exportar Legendas Estilizadas</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Diretor de Transições -->
+  <div id="transitions-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:680px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎭 Orquestração Inteligente de Transições</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharDiretorTransicoes()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:0.85rem; color:var(--text-muted);">Transições contextuais dinâmicas calculadas com base nas mudanças dramáticas e temporais:</div>
+        <div id="transitions-plan-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDiretorTransicoes()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Extrator de Shorts -->
+  <div id="shorts-extractor-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:700px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">✂️ Cortes Virais Automáticos para Shorts / TikTok (9:16)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharExtratorShorts()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="font-size:0.85rem; color:var(--text-muted);">Segmentos de 30-55s com maior densidade de ganchos virais detectados pela IA:</div>
+        <div id="shorts-extract-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharExtratorShorts()">Fechar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal de Títulos Virais & Thumbnails -->
   <div id="titles-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
@@ -1745,6 +1913,41 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "bit_depth": manifest.bit_depth,
                 "tracks": [t.__dict__ for t in manifest.tracks],
                 "ffmpeg_filter": filter_str
+            })
+        elif self.path.startswith("/api/subtitles/styles"):
+            return self.send_json({
+                "ok": True,
+                "styles": AITranscriptionSubtitleStyler.list_styles()
+            })
+        elif self.path.startswith("/api/transitions/plan"):
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            transitions = SmartSceneTransitionDirector.plan_project_transitions(plan)
+            return self.send_json({
+                "ok": True,
+                "project_id": plan.project_id,
+                "total_transitions": len(transitions),
+                "transitions": [t.__dict__ for t in transitions]
+            })
+        elif self.path.startswith("/api/shorts/extract"):
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            shorts = ContentRepurposerShortsExtractor.extract_viral_shorts(plan)
+            return self.send_json({
+                "ok": True,
+                "project_id": plan.project_id,
+                "total_shorts": len(shorts),
+                "shorts": shorts
             })
         elif self.path.startswith("/api/adaptive_crf"):
             import urllib.parse
@@ -2851,6 +3054,40 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 "compressed_bytes": res.compressed_bytes,
                 "uncompressed_bytes": res.uncompressed_bytes,
                 "included_files": res.included_files
+            })
+
+        elif self.path == "/api/subtitles/generate_styled":
+            project_id = data.get("project_id")
+            style_id = data.get("style_id", "hormozi_viral")
+            plan = self.repo.get(project_id)
+            if not plan:
+                return self.send_json({"ok": False, "error": "Not found"}, 404)
+            safe_title = "".join(c for c in plan.title if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
+            out_ass = Path("d:/CUTWIREDRIFT") / f"Legendas_{safe_title}_{style_id}.ass"
+            ass_text = AITranscriptionSubtitleStyler.generate_styled_ass(plan, style_id=style_id, output_path=str(out_ass))
+            return self.send_json({
+                "ok": True,
+                "file_path": str(out_ass),
+                "style_id": style_id,
+                "style_name": style_id.replace("_", " ").title()
+            })
+
+        elif self.path == "/api/thumbnail/compose":
+            project_id = data.get("project_id")
+            headline = data.get("headline_text", "A VERDADE")
+            plan = self.repo.get(project_id)
+            if not plan:
+                return self.send_json({"ok": False, "error": "Not found"}, 404)
+            res = AutoThumbnailVisualComposer.compose_thumbnail(plan, headline_text=headline)
+            return self.send_json({
+                "ok": True,
+                "project_id": res.project_id,
+                "output_image_path": res.output_image_path,
+                "width": res.width,
+                "height": res.height,
+                "hero_platform": res.hero_platform,
+                "headline_text": res.headline_text,
+                "engine": res.used_engine
             })
         else:
             self.send_response(404)

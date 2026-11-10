@@ -59,6 +59,10 @@
 - **Gerador de Títulos de Alto CTR & Selos de Thumbnail (`ClickbaitTitleHookGenerator`):** Cria 5 fórmulas de títulos virais e palavras de impacto para capa (ex: "A VERDADE", "O ERRO FATAL") aumentando a taxa de clique no YouTube.
 - **Alternador Dinâmico de Cutaways B-Roll (`BrollBouncer`):** Injeta cortes B-Roll secundários automáticos em cenas de longa duração (> 4.5s) mantendo ritmo ininterrupto e eliminando tédio visual.
 - **Empacotador de Projeto em 1-Clique .ZIP (`ProjectPackagerZip`):** Exporta um arquivo consolidado contendo timeline `.drift`, áudios WAV, legendas `.ass`, capítulos e manifesto de licenças para backup e compartilhamento entre máquinas.
+- **Estilos Visuais de Legenda Dinâmica (`AITranscriptionSubtitleStyler`):** Presets .ASS profissionais (Hormozi/MrBeast Pop com destaque na primeira palavra, Neon Glow, Cinema Classic e Minimalist Clean) para visual moderno em vídeos curtos e longos.
+- **Diretor Inteligente de Transições (`SmartSceneTransitionDirector`):** Analisa contexto emocional e saltos temporais para alternar entre cortes secos (Hard Cut), transições pretas (Dip to Black) e fusões suaves.
+- **Extrator de Cortes para Shorts/TikTok (`ContentRepurposerShortsExtractor`):** Identifica picos de curiosidade e energia em produções longas e recorta segmentos de 30 a 55s formatados em 9:16 vertical prontos para redes sociais.
+- **Compositor de Thumbnails Visuais 1280x720 (`AutoThumbnailVisualComposer`):** Gera o arquivo de imagem final da capa combinando o frame de maior impacto, vinheta de contraste e tipografia de alto CTR.
 
 ---
 </div>

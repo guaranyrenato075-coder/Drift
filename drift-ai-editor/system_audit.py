@@ -244,6 +244,10 @@ def audit_system():
         "pipeline.clickbait_title_generator",
         "editing.broll_bouncer",
         "storage.project_packager_zip",
+        "editing.subtitle_styler",
+        "editing.smart_transition_director",
+        "pipeline.shorts_extractor",
+        "pipeline.thumbnail_composer",
     ]
 
     for mod_name in modules_to_test:
