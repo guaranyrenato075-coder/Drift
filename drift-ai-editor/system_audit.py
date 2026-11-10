@@ -260,6 +260,10 @@ def audit_system():
         "audio.beat_drop_scene_sync",
         "voice.emotion_inflection_director",
         "editing.chapter_card_generator",
+        "pipeline.thumbnail_variator_ab",
+        "core.hardware_gpu_tuner",
+        "editing.retention_pacer",
+        "pipeline.youtube_community_packager",
     ]
 
     for mod_name in modules_to_test:

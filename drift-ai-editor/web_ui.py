@@ -78,6 +78,10 @@ from pipeline.story_hook_split_tester import AIStoryHookABSplitTester
 from audio.beat_drop_scene_sync import SoundtrackBeatDropSceneSync
 from voice.emotion_inflection_director import AIVoiceEmotionInflectionDirector
 from editing.chapter_card_generator import AutoVideoChapterCardGenerator
+from pipeline.thumbnail_variator_ab import AIAutomatedThumbnailVariatorAB
+from core.hardware_gpu_tuner import AdaptiveHardwareGPUAutoTuner
+from editing.retention_pacer import SmartAudienceRetentionPacer
+from pipeline.youtube_community_packager import AutoYouTubeCommunityPostPackager
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -316,6 +320,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fde68a; font-weight:600;" onclick="abrirBeatSyncModal()">🎵 Sincronizador de Beat Musical</button>
       <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ddd6fe; font-weight:600;" onclick="abrirVoiceEmotionModal()">🎭 Diretor de Emoção da Voz IA</button>
       <button class="btn" style="background:#059669; color:#fff; font-weight:700;" onclick="abrirChapterCardsModal()">🎬 Cartelas de Capítulos HD</button>
+      <button class="btn btn-secondary" style="border-color:#f43f5e; color:#fecdd3; font-weight:600;" onclick="abrirQuadThumbnailsModal()">🖼️ Quad-Thumbnails A/B/C/D</button>
+      <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirHardwareTunerModal()">⚡ Auto-Tuner GPU/CPU Hardware</button>
+      <button class="btn btn-secondary" style="border-color:#ef4444; color:#fecaca; font-weight:600;" onclick="abrirRetentionPacerModal()">💓 Ritmo Cardíaco & Dopamina</button>
+      <button class="btn" style="background:#0284c7; color:#fff; font-weight:700;" onclick="abrirCommunityPostModal()">📢 Posts de Comunidade & Enquetes</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -2165,6 +2173,215 @@ O Segredo do Foco Profundo</textarea>
     function fecharChapterCardsModal() {
       document.getElementById('chapter-cards-modal').style.display = 'none';
     }
+
+    // === APEX STUDIO: QUAD-THUMBNAILS, GPU TUNER, RETENTION PACER, COMMUNITY KIT ===
+    async function abrirQuadThumbnailsModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('quad-thumbnails-modal');
+      const grid = document.getElementById('quad-thumbnails-grid');
+      grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Gerando suite quad de thumbnails para Test & Compare do YouTube...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/thumbnails/quad?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro nas thumbnails');
+        const q = data.suite;
+
+        grid.innerHTML = (q.variants || []).map(v => `
+          <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:8px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <b style="color:#fecdd3; font-size:0.9rem;">${v.name}</b>
+                <span style="background:#881337; color:#ffe4e6; font-size:0.75rem; padding:2px 6px; border-radius:4px; font-weight:700;">+${v.estimated_ctr_boost_pct}% CTR</span>
+              </div>
+              <div style="background:#0f172a; border-radius:6px; padding:16px 12px; text-align:center; margin-top:8px; border:1px solid #334155;">
+                <span style="font-size:1.1rem; font-weight:900; color:#fbbf24; text-shadow:2px 2px 0 #000;">${v.headline_text}</span>
+              </div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:6px;">🎯 Foco: ${v.foveal_focus_zone}</div>
+            </div>
+            <div style="font-family:monospace; font-size:0.7rem; color:#38bdf8; background:#1e293b; padding:4px 6px; border-radius:4px; word-break:break-all;">
+              ${v.overlay_filter}
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        grid.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharQuadThumbnailsModal() {
+      document.getElementById('quad-thumbnails-modal').style.display = 'none';
+    }
+
+    async function abrirHardwareTunerModal() {
+      const modal = document.getElementById('hardware-tuner-modal');
+      const contentEl = document.getElementById('hardware-tuner-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Sondando aceleração de hardware GPU/CPU...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch('/api/hardware/profile');
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro no profiler');
+        const p = data.profile;
+
+        contentEl.innerHTML = `
+          <div style="background:#422006; border-left:4px solid #eab308; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#fef08a; font-size:0.95rem;">⚡ Perfil Ativo: ${p.hardware_acceleration_name}</div>
+            <div style="font-size:0.8rem; color:#fef9c3; margin-top:2px;">
+              Plataforma: <b>${p.platform_system}</b> | Encoder Otimizado: <b>${p.recommended_encoder}</b> | Threads: <b>${p.cpu_thread_allocation}</b>
+            </div>
+          </div>
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+            <b style="color:#93c5fd; font-size:0.85rem;">Parâmetros de Linha de Comando FFmpeg Calculados:</b>
+            <div style="font-family:monospace; font-size:0.78rem; color:#10b981; background:#0f172a; padding:8px; border-radius:4px; word-break:break-all;">
+              ${p.ffmpeg_video_flags}
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">
+              🛡️ Modo Anti-Congelamento ativo: memória buffer limitada a ${p.memory_limit_mb}MB com liberação automática de páginas sujas.
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharHardwareTunerModal() {
+      document.getElementById('hardware-tuner-modal').style.display = 'none';
+    }
+
+    async function abrirRetentionPacerModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('retention-pacer-modal');
+      const listEl = document.getElementById('retention-pacer-list');
+      listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Calculando ondas de dopamina e alternância de ritmo...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/pacing/waves?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro no pacer');
+        const pw = data.pacing;
+
+        listEl.innerHTML = `
+          <div style="background:#450a0a; border-left:4px solid #ef4444; padding:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:700; color:#fecaca; font-size:0.95rem;">💓 Hollywood Dopamine Wave (Ondas de Pacing)</div>
+              <div style="font-size:0.8rem; color:#fee2e2; margin-top:2px;">
+                Cenas Contemplativas (4s-5s) alternadas com Rajadas de Alta Energia (1.5s-2s) | Duração Otimizada: <b>${pw.total_timeline_duration_sec}s</b>
+              </div>
+            </div>
+            <button class="btn" style="background:#ef4444; color:#fff; font-weight:700; font-size:0.8rem;" onclick="aplicarPacingDopamina()">⚡ Aplicar Pacing à Timeline</button>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto; margin-top:8px;">
+            ${(pw.pacing_beats || []).map(b => `
+              <div style="background:var(--card-bg); border:1px solid var(--border); padding:8px 10px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;">
+                <div>
+                  <b style="color:#fff;">Cena #${b.scene_order}</b>
+                  <span style="margin-left:8px; color:#fca5a5; font-weight:600;">[${b.rhythm_phase.toUpperCase()}]</span>
+                  <span style="margin-left:6px; font-size:0.75rem; color:var(--text-muted);">${b.dopamine_target}</span>
+                </div>
+                <span style="background:#1e293b; color:#93c5fd; padding:2px 8px; border-radius:4px; font-weight:700;">${b.optimized_duration}s (${b.recommended_cut_tempo})</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharRetentionPacerModal() {
+      document.getElementById('retention-pacer-modal').style.display = 'none';
+    }
+    async function aplicarPacingDopamina() {
+      if (!currentPlan) return;
+      showStatus('Aplicando modulação de ritmo de dopamina à timeline...', '#ef4444');
+      try {
+        const res = await fetch('/api/pacing/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showStatus('Pacing cinematográfico aplicado!', '#10b981');
+          alert('Sucesso!\n\nAs durações das cenas foram recalculadas em ondas de tensão, contemplação e rajadas de informação.');
+          fecharRetentionPacerModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar pacing: ' + e.message);
+      }
+    }
+
+    async function abrirCommunityPostModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      const modal = document.getElementById('community-post-modal');
+      const contentEl = document.getElementById('community-post-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Gerando kit de engajamento para a aba Comunidade do YouTube...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/community/kit?project_id=${encodeURIComponent(currentPlan.project_id)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Erro no kit de comunidade');
+        const kit = data.kit;
+
+        contentEl.innerHTML = `
+          <div style="background:#0c4a6e; border-left:4px solid #0284c7; padding:12px; border-radius:6px;">
+            <div style="font-weight:700; color:#bae6fd; font-size:0.95rem;">📢 Kit de Publicação para Aba Comunidade do YouTube</div>
+            <div style="font-size:0.8rem; color:#e0f2fe; margin-top:2px;">
+              ${kit.recommended_publish_timing}
+            </div>
+          </div>
+
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="color:#fde047; font-size:0.9rem;">📊 1. Enquete de Múltipla Escolha:</b>
+              <button class="btn btn-secondary" style="font-size:0.75rem;" onclick="copiarPostComunidade('poll')">📋 Copiar Pergunta & Opções</button>
+            </div>
+            <div style="font-weight:600; color:#fff; font-size:0.85rem;" id="comm-poll-q">${kit.poll.poll_question}</div>
+            <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;" id="comm-poll-opts">
+              ${kit.poll.options.map((opt, i) => `<div style="background:#0f172a; padding:6px 10px; border-radius:4px; font-size:0.8rem; color:#cbd5e1;">Opção ${i+1}: ${opt}</div>`).join('')}
+            </div>
+          </div>
+
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="color:#38bdf8; font-size:0.9rem;">🚨 2. Teaser com Imagem de Bastidor:</b>
+              <button class="btn btn-secondary" style="font-size:0.75rem;" onclick="copiarPostComunidade('teaser')">📋 Copiar Texto do Teaser</button>
+            </div>
+            <textarea id="comm-teaser-text" readonly style="width:100%; height:90px; background:#0f172a; border:1px solid #334155; color:#fff; font-size:0.82rem; padding:8px; border-radius:4px;">${kit.teaser_post_text}</textarea>
+          </div>
+
+          <div style="background:var(--card-bg); border:1px solid var(--border); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="color:#a7f3d0; font-size:0.9rem;">💬 3. Pergunta Aberta para Comentários:</b>
+              <button class="btn btn-secondary" style="font-size:0.75rem;" onclick="copiarPostComunidade('discussion')">📋 Copiar Pergunta</button>
+            </div>
+            <div style="background:#0f172a; padding:8px 10px; border-radius:4px; font-size:0.82rem; color:#e2e8f0;" id="comm-discussion-text">${kit.open_discussion_question}</div>
+          </div>
+        `;
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444; padding:10px;">Falha: ${e.message}</div>`;
+      }
+    }
+    function fecharCommunityPostModal() {
+      document.getElementById('community-post-modal').style.display = 'none';
+    }
+    function copiarPostComunidade(tipo) {
+      let txt = '';
+      if (tipo === 'poll') {
+        const q = document.getElementById('comm-poll-q').innerText;
+        const opts = Array.from(document.getElementById('comm-poll-opts').children).map(c => c.innerText).join('\n');
+        txt = `${q}\n\n${opts}`;
+      } else if (tipo === 'teaser') {
+        txt = document.getElementById('comm-teaser-text').value;
+      } else if (tipo === 'discussion') {
+        txt = document.getElementById('comm-discussion-text').innerText;
+      }
+      navigator.clipboard.writeText(txt);
+      alert('Texto copiado com sucesso para a área de transferência!');
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -2624,6 +2841,67 @@ O Segredo do Foco Profundo</textarea>
       <div id="chapter-cards-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
       <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
         <button class="btn btn-secondary" onclick="fecharChapterCardsModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Quad-Thumbnails A/B/C/D -->
+  <div id="quad-thumbnails-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:820px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🖼️ Suite de 4 Thumbnails (YouTube Test & Compare)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharQuadThumbnailsModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1;">
+        <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">
+          4 variações psicológicas prontas para upload no teste automático de CTR do YouTube Studio:
+        </div>
+        <div id="quad-thumbnails-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharQuadThumbnailsModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Auto-Tuner GPU/CPU Hardware -->
+  <div id="hardware-tuner-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:700px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">⚡ Auto-Tuner de Hardware GPU/CPU & Encoders</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharHardwareTunerModal()">&times;</button>
+      </div>
+      <div id="hardware-tuner-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharHardwareTunerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Ritmo Cardíaco & Dopamina -->
+  <div id="retention-pacer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:740px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">💓 Diretor de Ritmo Cardíaco & Dopamina (Hollywood Pacing)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharRetentionPacerModal()">&times;</button>
+      </div>
+      <div id="retention-pacer-list" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharRetentionPacerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Posts de Comunidade & Enquetes -->
+  <div id="community-post-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:760px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">📢 Kit para Aba Comunidade do YouTube</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharCommunityPostModal()">&times;</button>
+      </div>
+      <div id="community-post-content" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharCommunityPostModal()">Fechar</button>
       </div>
     </div>
   </div>
@@ -3182,6 +3460,36 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
             cards_res = AutoVideoChapterCardGenerator.generate_cards_for_plan(plan)
             return self.send_json({"ok": True, "result": cards_res})
+        elif self.path.startswith("/api/thumbnails/quad"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            quad = AIAutomatedThumbnailVariatorAB.plan_thumbnail_suite(plan)
+            return self.send_json({"ok": True, "suite": quad})
+        elif self.path.startswith("/api/hardware/profile"):
+            prof = AdaptiveHardwareGPUAutoTuner.probe_hardware()
+            return self.send_json({"ok": True, "profile": prof.__dict__})
+        elif self.path.startswith("/api/pacing/waves"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            pacing_res = SmartAudienceRetentionPacer.calculate_pacing_waves(plan)
+            return self.send_json({"ok": True, "pacing": pacing_res})
+        elif self.path.startswith("/api/community/kit"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            comm_kit = AutoYouTubeCommunityPostPackager.export_kit_dict(plan)
+            return self.send_json({"ok": True, "kit": comm_kit})
         else:
             self.send_response(404)
             self.end_headers()
@@ -4204,6 +4512,14 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             res = SoundtrackBeatDropSceneSync.synchronize_timeline_to_bpm(plan, bpm=bpm)
             self.repo.save(plan)
             return self.send_json({"ok": True, **res})
+        elif self.path == "/api/pacing/apply":
+            proj_id = data.get("project_id")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            pacing_res = SmartAudienceRetentionPacer.calculate_pacing_waves(plan)
+            self.repo.save(plan)
+            return self.send_json({"ok": True, **pacing_res})
         else:
             self.send_response(404)
             self.end_headers()

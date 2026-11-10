@@ -75,6 +75,10 @@
 - **Sincronizador Rítmico de Cortes no Beat Musical (`SoundtrackBeatDropSceneSync`):** Quantiza a duração das cenas aos compassos e tempos do BPM da música para ritmo envolvente de trailer de cinema.
 - **Diretor de Inflexão Emocional da Voz IA (`AIVoiceEmotionInflectionDirector`):** Modula prosódia, velocidade, pitch e pausas respiratórias conforme o tom dramático de cada cena (misterioso, clímax acelerado, reflexivo ou solene).
 - **Gerador de Cartelas de Abertura de Capítulo HD (`AutoVideoChapterCardGenerator`):** Renderiza vinhetas elegantes de transição de capítulos com algarismos romanos, tipografia cinematográfica e foley de impacto *sub-boom*.
+- **Gerador de 4 Variações de Thumbnails A/B/C/D (`AIAutomatedThumbnailVariatorAB`):** Gera quad de capas em alta resolução (Foco no Sujeito, Headline Neon, Mistério e Split-Frame) prontas para o recurso nativo "Test & Compare" do YouTube Studio.
+- **Auto-Tuner de Hardware GPU/CPU & Encoders (`AdaptiveHardwareGPUAutoTuner`):** Seleciona aceleração por hardware NVIDIA NVENC, Intel QSV, AMD AMF ou multi-core CPU (Xeon) com proteções de buffer para velocidade máxima de renderização sem travamentos.
+- **Diretor de Ritmo Cardíaco & Pacing de Dopamina (`SmartAudienceRetentionPacer`):** Alterna matematicamente momentos contemplativos (4s-5s) e rajadas rápidas de informação (1.5s-2s) para ondulação contínua de atenção e alta retenção.
+- **Gerador de Posts de Comunidade & Enquetes (`AutoYouTubeCommunityPostPackager`):** Extrai do roteiro e formula enquetes interativas de 4 opções, teasers e perguntas abertas para a aba Comunidade do YouTube.
 
 ---
 </div>
