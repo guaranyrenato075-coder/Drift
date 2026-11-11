@@ -130,6 +130,10 @@ from editing.smart_keyframe_interval_aligner import SmartKeyframeIntervalAligner
 from pipeline.gpu_vram_leak_sentinel import GPUVRAMLeakSentinel
 from core.nvme_trim_io_coalescer import NVMeTrimIOCoalescer
 from media.smart_color_space_fast_matrix import SmartColorSpaceFastMatrix
+from core.windows_timer_resolution_optimizer import WindowsTimerResolutionOptimizer
+from editing.audio_peak_fast_integer_scanner import AudioPeakFastIntegerScanner
+from media.speculative_disk_seek_canceller import SpeculativeDiskSeekCanceller
+from pipeline.gpu_compute_memory_barrier_guard import GPUComputeMemoryBarrierGuard
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -420,6 +424,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirVRAMSentinelModal()">🛡️ Sentinela Anti-Vazamento VRAM</button>
       <button class="btn btn-secondary" style="border-color:#14b8a6; color:#ccfbf1; font-weight:600;" onclick="abrirNVMeCoalescerModal()">⚡ Coalescedor 4KB NVMe SSD</button>
       <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirColorMatrixModal()">🎨 Matriz Cromática Rápida SIMD</button>
+      <button class="btn btn-secondary" style="border-color:#0284c7; color:#e0f2fe; font-weight:600;" onclick="abrirTimerOptimizerModal()">⏱️ Timer do Windows (Eco Idle)</button>
+      <button class="btn btn-secondary" style="border-color:#16a34a; color:#dcfce7; font-weight:600;" onclick="abrirAudioPeakModal()">🔊 Scanner de Picos Inteiro (Zero Float)</button>
+      <button class="btn btn-secondary" style="border-color:#dc2626; color:#fee2e2; font-weight:600;" onclick="abrirSeekCancellerModal()">🛑 Cancelador de Seeks no SSD</button>
+      <button class="btn btn-secondary" style="border-color:#7c3aed; color:#ede9fe; font-weight:600;" onclick="abrirGPUBarrierModal()">🛡️ Barreira de Memória GPU (No Stall)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -4594,6 +4602,160 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular matriz: ${e.message}</div>`;
       }
     }
+
+    // --- Funções do Pacote Hardware-Armor Pinnacle ---
+    async function abrirTimerOptimizerModal() {
+      document.getElementById('timer-optimizer-modal').style.display = 'flex';
+      alternarTimerResolution(null);
+    }
+    function fecharTimerOptimizerModal() {
+      document.getElementById('timer-optimizer-modal').style.display = 'none';
+    }
+    async function alternarTimerResolution(mode) {
+      const contentEl = document.getElementById('timer-optimizer-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Consultando resolução do timer do Windows...</div>';
+      try {
+        const url = mode === null ? '/api/system/timer_resolution' : `/api/system/timer_resolution?high_precision=${mode ? 1 : 0}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.ok && data.result) {
+          const r = data.result;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:${r.high_precision_mode ? '#38bdf8' : '#4ade80'};">${r.current_state}</span>
+                <span style="background:${r.high_precision_mode ? 'rgba(56,189,248,0.2)' : 'rgba(74,222,128,0.2)'}; color:${r.high_precision_mode ? '#bae6fd' : '#bbf7d0'}; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  ${r.target_resolution_ms}ms Tick
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Economia Basal de CPU: <strong>${r.cpu_idle_power_savings_pct}%</strong> | Suporte WinMM: ${r.applied_via_winmm ? 'Ativo' : 'Simulado/Nativo'}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e2e8f0;">${r.summary}</div>
+              <div style="margin-top:12px; display:flex; gap:8px;">
+                <button class="btn btn-secondary" onclick="alternarTimerResolution(0)" ${!r.high_precision_mode ? 'disabled' : ''}>Forçar Modo Idle (15.6ms)</button>
+                <button class="btn btn-primary" onclick="alternarTimerResolution(1)" ${r.high_precision_mode ? 'disabled' : ''}>Ativar Alta Precisão (1.0ms)</button>
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao gerenciar timer: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirAudioPeakModal() {
+      document.getElementById('audio-peak-modal').style.display = 'flex';
+      calcularAudioPeak();
+    }
+    function fecharAudioPeakModal() {
+      document.getElementById('audio-peak-modal').style.display = 'none';
+    }
+    async function calcularAudioPeak() {
+      const amp = document.getElementById('audio-peak-amp')?.value || '28000';
+      const contentEl = document.getElementById('audio-peak-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Varrendo amostras de áudio com matemática inteira...</div>';
+      try {
+        const res = await fetch(`/api/audio/peak_scan?amplitude=${amp}`);
+        const data = await res.json();
+        if (data.ok && data.scan) {
+          const s = data.scan;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:${s.has_clipping ? '#ef4444' : '#4ade80'};">
+                  ${s.peak_dbfs} dBFS ${s.has_clipping ? '(CLIPPING)' : '(NORMAL)'}
+                </span>
+                <span style="background:rgba(74,222,128,0.2); color:#bbf7d0; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${s.cpu_overhead_reduction_pct}% Sobrecarga de CPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Amostras: ${s.samples_count.toLocaleString()} | Pico Inteiro: ${s.peak_integer} / ${s.max_int16_limit} | Headroom: ${s.headroom_db} dB
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e2e8f0;">${s.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro na varredura inteira: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirSeekCancellerModal() {
+      document.getElementById('seek-canceller-modal').style.display = 'flex';
+      simularCancelamentoSeeks();
+    }
+    function fecharSeekCancellerModal() {
+      document.getElementById('seek-canceller-modal').style.display = 'none';
+    }
+    async function simularCancelamentoSeeks() {
+      const contentEl = document.getElementById('seek-canceller-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Avaliando requisições pendentes na linha do tempo...</div>';
+      try {
+        const res = await fetch('/api/media/seek_cancel?pending=intro,cena1,cena2,cena3,outro&visible=cena2,cena3');
+        const data = await res.json();
+        if (data.ok && data.canceller) {
+          const c = data.canceller;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#38bdf8;">${c.cancelled_obsolete_seeks} I/O Seeks Obsoletos Descartados</span>
+                <span style="background:rgba(56,189,248,0.2); color:#bae6fd; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${c.io_queue_pressure_reduction_pct}% Pressão no SSD
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Requisições ativas mantidas: ${c.active_seeks_remaining} | Descartadas: ${c.cancelled_clip_ids.join(', ')}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e2e8f0;">${c.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no cancelamento de busca: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirGPUBarrierModal() {
+      document.getElementById('gpu-barrier-modal').style.display = 'flex';
+      calcularGPUBarrier();
+    }
+    function fecharGPUBarrierModal() {
+      document.getElementById('gpu-barrier-modal').style.display = 'none';
+    }
+    async function calcularGPUBarrier() {
+      const hw = document.getElementById('gpu-barrier-hw')?.value || 'd3d11va';
+      const fps = document.getElementById('gpu-barrier-fps')?.value || '60';
+      const contentEl = document.getElementById('gpu-barrier-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando barreira de sincronização de VRAM...</div>';
+      try {
+        const res = await fetch(`/api/pipeline/gpu_barrier/calculate?hw=${hw}&fps=${fps}`);
+        const data = await res.json();
+        if (data.ok && data.barrier) {
+          const b = data.barrier;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#a855f7;">${b.hw_acceleration.toUpperCase()} | ${b.target_fps} FPS</span>
+                <span style="background:rgba(168,85,247,0.2); color:#e9d5ff; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${b.gpu_stall_reduction_pct}% Stalls Térmicos
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Orçamento de Quadro: ${b.frame_time_budget_ms} ms | Buffer em Anel VRAM: ${b.vram_ring_buffer_frames} frames
+              </div>
+              <div style="font-size:0.75rem; font-family:monospace; color:#d8b4fe; background:#0f172a; padding:6px; border-radius:4px;">
+                FFmpeg Sync Flags: ${b.ffmpeg_sync_args}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f3e8ff;">${b.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro na barreira de GPU: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -5935,6 +6097,105 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal Windows Timer Resolution Optimizer -->
+  <div id="timer-optimizer-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:540px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>⏱️</span> Windows Timer Resolution Optimizer
+        </h3>
+        <button onclick="fecharTimerOptimizerModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="timer-optimizer-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharTimerOptimizerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Fast Integer Audio Peak Scanner -->
+  <div id="audio-peak-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🔊</span> Fast Integer Audio Peak Scanner
+        </h3>
+        <button onclick="fecharAudioPeakModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Pico de Teste (Int16):</label>
+          <select id="audio-peak-amp" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularAudioPeak()">
+            <option value="16000">-6 dBFS (Amplo Headroom)</option>
+            <option value="28000" selected>-1.3 dBFS (Pico Seguro de Streaming)</option>
+            <option value="32767">0 dBFS (Pico Máximo / Clipping)</option>
+          </select>
+        </div>
+        <div id="audio-peak-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAudioPeakModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Speculative Disk Seek Canceller -->
+  <div id="seek-canceller-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🧭</span> Speculative Disk Seek Canceller
+        </h3>
+        <button onclick="fecharSeekCancellerModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="seek-canceller-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-primary" onclick="simularCancelamentoSeeks()">Simular Pruning de I/O</button>
+        <button class="btn btn-secondary" onclick="fecharSeekCancellerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal GPU Memory Barrier Guard -->
+  <div id="gpu-barrier-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:580px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🛡️</span> GPU Compute Memory Barrier Guard
+        </h3>
+        <button onclick="fecharGPUBarrierModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Aceleração:</label>
+            <select id="gpu-barrier-hw" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularGPUBarrier()">
+              <option value="d3d11va" selected>Direct3D 11 (D3D11VA)</option>
+              <option value="cuda">NVIDIA CUDA</option>
+              <option value="qsv">Intel QuickSync</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Taxa de Quadros:</label>
+            <select id="gpu-barrier-fps" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularGPUBarrier()">
+              <option value="30">30 FPS</option>
+              <option value="60" selected>60 FPS</option>
+              <option value="120">120 FPS</option>
+            </select>
+          </div>
+        </div>
+        <div id="gpu-barrier-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharGPUBarrierModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -6920,6 +7181,46 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             tgt_val = params.get("tgt", ["bt709"])[0]
             matrix_data = SmartColorSpaceFastMatrix.build_fast_matrix_filter(source_space=src_val, target_space=tgt_val)
             return self.send_json({"ok": True, "matrix": matrix_data})
+        elif self.path.startswith("/api/system/timer_resolution"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            mode_param = params.get("high_precision")
+            if mode_param is not None:
+                high_prec = bool(int(mode_param[0]))
+                res = WindowsTimerResolutionOptimizer.set_timer_resolution(high_precision_mode=high_prec)
+            else:
+                res = WindowsTimerResolutionOptimizer.set_timer_resolution(high_precision_mode=WindowsTimerResolutionOptimizer._high_precision_active)
+            return self.send_json({"ok": True, "result": res})
+        elif self.path.startswith("/api/audio/peak_scan"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            amp_val = int(params.get("amplitude", [28000])[0])
+            test_samples = [int(amp_val * math.sin(i * 0.1)) for i in range(44100)]
+            pcm_bytes = bytearray()
+            for s in test_samples:
+                pcm_bytes.extend(int(s).to_bytes(2, byteorder="little", signed=True))
+            scan_data = AudioPeakFastIntegerScanner.scan_pcm16_samples(bytes(pcm_bytes))
+            return self.send_json({"ok": True, "scan": scan_data})
+        elif self.path.startswith("/api/media/seek_cancel"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            pending_str = params.get("pending", ["intro,cena1,cena2,cena3,outro"])[0]
+            visible_str = params.get("visible", ["cena2,cena3"])[0]
+            canceller = SpeculativeDiskSeekCanceller()
+            import time
+            for p in pending_str.split(","):
+                if p.strip():
+                    canceller.register_read_request(p.strip(), time.time())
+            visible_set = {v.strip() for v in visible_str.split(",") if v.strip()}
+            cancel_data = canceller.prune_obsolete_requests(visible_set)
+            return self.send_json({"ok": True, "canceller": cancel_data})
+        elif self.path.startswith("/api/pipeline/gpu_barrier/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            hw = params.get("hw", ["d3d11va"])[0]
+            fps = float(params.get("fps", [60.0])[0])
+            barrier_data = GPUComputeMemoryBarrierGuard.generate_barrier_sync_policy(hw_acceleration=hw, fps=fps)
+            return self.send_json({"ok": True, "barrier": barrier_data})
         else:
             self.send_response(404)
             self.end_headers()

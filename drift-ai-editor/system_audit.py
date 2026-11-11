@@ -312,6 +312,10 @@ def audit_system():
         "pipeline.gpu_vram_leak_sentinel",
         "core.nvme_trim_io_coalescer",
         "media.smart_color_space_fast_matrix",
+        "core.windows_timer_resolution_optimizer",
+        "editing.audio_peak_fast_integer_scanner",
+        "media.speculative_disk_seek_canceller",
+        "pipeline.gpu_compute_memory_barrier_guard",
     ]
 
     for mod_name in modules_to_test:
