@@ -1,4 +1,7 @@
 import urllib.request
+import urllib.parse
+import ipaddress
+import socket
 import shutil
 import tempfile
 from pathlib import Path
@@ -12,7 +15,39 @@ class MediaDownloader:
     """
     Safely downloads media files to a temporary location, validates them,
     and moves them atomically into the persistent cache.
+    Includes defense-in-depth anti-SSRF validation.
     """
+
+    @staticmethod
+    def is_safe_download_url(url: str) -> Tuple[bool, str]:
+        """
+        Validates URL scheme and destination to prevent SSRF and local file leaks.
+        """
+        if not url or not isinstance(url, str):
+            return False, "URL vazia ou inválida"
+        
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme.lower() not in ("http", "https"):
+            return False, f"Protocolo não permitido: '{parsed.scheme}'. Apenas http e https são autorizados."
+
+        hostname = parsed.hostname
+        if not hostname:
+            return False, "Hostname ausente na URL"
+
+        hostname_lower = hostname.lower()
+        if hostname_lower in ("localhost", "127.0.0.1", "0.0.0.0", "169.254.169.254", "metadata.google.internal"):
+            return False, f"Acesso bloqueado a endereço reservado ou interno: '{hostname}'"
+
+        try:
+            # Tenta verificar se o hostname é um IP literal
+            ip = ipaddress.ip_address(hostname_lower)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False, f"Acesso bloqueado a endereço IP não público: {ip}"
+        except ValueError:
+            # Hostname com domínio de texto (ex: images.pexels.com), permitido
+            pass
+
+        return True, "URL segura"
 
     def __init__(self, cache: Optional[MediaCache] = None):
         self.cache = cache or MediaCache()
@@ -20,6 +55,11 @@ class MediaDownloader:
     def download_candidate(self, candidate: MediaCandidate, timeout_sec: int = 30) -> Tuple[bool, Optional[Path], str]:
         if not candidate.download_url:
             return False, None, "URL de download ausente para o clipe"
+
+        # Anti-SSRF Security Validation
+        is_safe, sec_reason = self.is_safe_download_url(candidate.download_url)
+        if not is_safe:
+            return False, None, f"Bloqueio de segurança (SSRF): {sec_reason}"
 
         # Check existing cache first
         url_lower = candidate.download_url.lower()

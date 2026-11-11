@@ -5310,7 +5310,23 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
     skill_bridge = GeminiSkillBridge()
     policy_manager = PlatformPolicyManager()
 
+    def _validate_origin_and_host(self) -> bool:
+        """Mitigates Cross-Site Request Forgery (CSRF) and DNS Rebinding."""
+        host = self.headers.get("Host", "")
+        if host and not (host.startswith("127.0.0.1") or host.startswith("localhost")):
+            self.send_error(403, "Acesso proibido: Host inválido (Proteção contra DNS Rebinding)")
+            return False
+
+        origin = self.headers.get("Origin")
+        if origin:
+            if not (origin.startswith("http://127.0.0.1") or origin.startswith("http://localhost")):
+                self.send_error(403, "Acesso proibido: Origem não autorizada (Proteção Cross-Origin)")
+                return False
+        return True
+
     def do_GET(self):
+        if not self._validate_origin_and_host():
+            return
         if self.path == "/" or self.path == "/index.html":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -6196,6 +6212,8 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        if not self._validate_origin_and_host():
+            return
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length).decode("utf-8")
         data = json.loads(body) if body else {}
