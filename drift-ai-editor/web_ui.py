@@ -142,6 +142,10 @@ from core.cpu_cache_l3_affinity_balancer import CPUCacheL3AffinityBalancer
 from editing.lossless_audio_crossfade_integer_lut import LosslessAudioCrossfadeIntegerLUT
 from media.mp4_moov_atom_early_detector import MP4MoovAtomEarlyDetector
 from pipeline.gpu_shader_warmup_pipeline_cache import GPUShaderWarmupPipelineCache
+from core.numa_node_memory_locality_binder import NUMANodeMemoryLocalityBinder
+from editing.bezier_easing_fixed_point_evaluator import BezierEasingFixedPointEvaluator
+from media.prores_dnxhr_passthrough_muxer import ProResDNxHRPassthroughMuxer
+from storage.journal_page_wear_leveling_mitigator import JournalPageWearLevelingMitigator
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -444,6 +448,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#f43f5e; color:#ffe4e6; font-weight:600;" onclick="abrirAudioCrossfadeModal()">🎶 Crossfade Inteiro LUT (No FPU Load)</button>
       <button class="btn btn-secondary" style="border-color:#38bdf8; color:#e0f2fe; font-weight:600;" onclick="abrirMoovDetectorModal()">⚡ Leitura FastStart MOOV (SSD Shield)</button>
       <button class="btn btn-secondary" style="border-color:#a855f7; color:#f3e8ff; font-weight:600;" onclick="abrirShaderWarmupModal()">🛡️ Aquecimento de Shaders GPU (No Stutter)</button>
+      <button class="btn btn-secondary" style="border-color:#14b8a6; color:#ccfbf1; font-weight:600;" onclick="abrirNUMABindingModal()">🧬 Localidade NUMA RAM/CPU (Zero Hops)</button>
+      <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fef3c7; font-weight:600;" onclick="abrirBezierFixedModal()">📐 Bezier Easing Q16.16 (Zero FPU Load)</button>
+      <button class="btn btn-secondary" style="border-color:#22c55e; color:#dcfce7; font-weight:600;" onclick="abrirProResPassthroughModal()">🎬 Passthrough ProRes/DNxHR (Zero Render)</button>
+      <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirWearMitigatorModal()">🛡️ Proteção de Desgaste NAND 64KB (WAF Shield)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -5061,6 +5069,154 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro no aquecimento de shaders: ${e.message}</div>`;
       }
     }
+
+    // --- Funções do Pacote Hardware-Armor Titanium ---
+    async function abrirNUMABindingModal() {
+      document.getElementById('numa-binding-modal').style.display = 'flex';
+      consultarNUMABinding();
+    }
+    function fecharNUMABindingModal() {
+      document.getElementById('numa-binding-modal').style.display = 'none';
+    }
+    async function consultarNUMABinding() {
+      const contentEl = document.getElementById('numa-binding-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Mapeando afinidade de nós NUMA e topologia RAM...</div>';
+      try {
+        const res = await fetch('/api/core/numa/topology');
+        const data = await res.json();
+        if (data.ok && data.topology) {
+          const t = data.topology;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#14b8a6;">${t.numa_nodes_count} Nó(s) NUMA (${t.detected_cores} Núcleos)</span>
+                <span style="background:rgba(20,184,166,0.2); color:#99f6e4; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${t.cross_node_traffic_reduction_pct}% Tráfego Inter-Socket
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Ganho de Latência RAM: <strong>+${t.memory_latency_improvement_pct}%</strong> | Mapeamento: ${JSON.stringify(t.node_assignments)}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#ccfbf1;">${t.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro na topologia NUMA: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirBezierFixedModal() {
+      document.getElementById('bezier-fixed-modal').style.display = 'flex';
+      avaliarBezierFixed();
+    }
+    function fecharBezierFixedModal() {
+      document.getElementById('bezier-fixed-modal').style.display = 'none';
+    }
+    async function avaliarBezierFixed() {
+      const prog = document.getElementById('bezier-prog')?.value || '0.5';
+      const contentEl = document.getElementById('bezier-fixed-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando curva Bezier Q16.16...</div>';
+      try {
+        const res = await fetch(`/api/editing/bezier_fixed/evaluate?progress=${prog}`);
+        const data = await res.json();
+        if (data.ok && data.bezier) {
+          const b = data.bezier;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#f59e0b;">Progresso: ${(prog * 100).toFixed(0)}% -> Easing: ${(b.eased_value * 100).toFixed(1)}%</span>
+                <span style="background:rgba(245,158,11,0.2); color:#fef08a; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${b.fpu_workload_reduction_pct}% Carga da FPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Formato: <strong>${b.format}</strong> | Ciclos de FPU poupados: <strong>${b.fpu_cycles_saved.toLocaleString()}</strong>
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#fef3c7;">${b.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Bezier Q16.16: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirProResPassthroughModal() {
+      document.getElementById('prores-passthrough-modal').style.display = 'flex';
+      calcularProResPassthrough();
+    }
+    function fecharProResPassthroughModal() {
+      document.getElementById('prores-passthrough-modal').style.display = 'none';
+    }
+    async function calcularProResPassthrough() {
+      const codec = document.getElementById('prores-codec')?.value || 'prores';
+      const graded = document.getElementById('prores-graded')?.value === '1';
+      const contentEl = document.getElementById('prores-passthrough-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Avaliando viabilidade de stream copy direto...</div>';
+      try {
+        const res = await fetch(`/api/media/passthrough/evaluate?codec=${codec}&graded=${graded ? 1 : 0}`);
+        const data = await res.json();
+        if (data.ok && data.passthrough) {
+          const p = data.passthrough;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:${p.can_passthrough ? '#22c55e' : '#f59e0b'};">${p.codec.toUpperCase()} (${p.can_passthrough ? 'STREAM COPY' : 'ENCODE'})</span>
+                <span style="background:rgba(34,197,94,0.2); color:#bbf7d0; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${p.render_workload_saved_pct}% Carga de Render
+                </span>
+              </div>
+              <div style="font-size:0.75rem; font-family:monospace; color:#86efac; background:#0f172a; padding:6px; border-radius:4px; margin:8px 0;">
+                FFmpeg Export Flag: ${p.ffmpeg_video_flag}
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">
+                Preservação: <strong>${p.quality_preservation}</strong> | Redução no tempo de export: <strong>${p.export_time_reduction_pct}%</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#dcfce7;">${p.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no passthrough: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirWearMitigatorModal() {
+      document.getElementById('wear-mitigator-modal').style.display = 'flex';
+      simularWearMitigator();
+    }
+    function fecharWearMitigatorModal() {
+      document.getElementById('wear-mitigator-modal').style.display = 'none';
+    }
+    async function simularWearMitigator() {
+      const contentEl = document.getElementById('wear-mitigator-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Simulando consolidação de escritas em blocos SLC 64KB...</div>';
+      try {
+        const res = await fetch('/api/storage/wear_mitigator/simulate');
+        const data = await res.json();
+        if (data.ok && data.mitigator) {
+          const m = data.mitigator;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#ec4899;">Alinhamento Ótimo: ${m.optimal_block_alignment_kb} KB</span>
+                <span style="background:rgba(236,72,153,0.2); color:#fbcfe8; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${m.nand_write_amplification_reduction_pct}% Ciclos NAND
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                ${m.simulated_raw_writes} pequenas escritas transformadas em <strong>${m.consolidated_aligned_flushes} gravações consolidadas</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${m.ssd_wear_leveling_protection}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#fce7f3;">${m.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no mitigador de desgaste: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -6690,6 +6846,105 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal Localidade NUMA RAM/CPU -->
+  <div id="numa-binding-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🧬</span> Localidade de Memória NUMA (Zero Inter-Socket)
+        </h3>
+        <button onclick="fecharNUMABindingModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="numa-binding-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharNUMABindingModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Bezier Easing Q16.16 -->
+  <div id="bezier-fixed-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>📐</span> Bezier Easing Q16.16 (Inteiro 32-bit)
+        </h3>
+        <button onclick="fecharBezierFixedModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Progresso da Curva:</label>
+          <select id="bezier-prog" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarBezierFixed()">
+            <option value="0.1">10% (Início de Aceleração)</option>
+            <option value="0.5" selected>50% (Ponto de Inflexão Médio)</option>
+            <option value="0.9">90% (Final de Desaceleração)</option>
+          </select>
+        </div>
+        <div id="bezier-fixed-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharBezierFixedModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Passthrough ProRes/DNxHR -->
+  <div id="prores-passthrough-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:580px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🎬</span> Passthrough ProRes / DNxHR (Zero Render)
+        </h3>
+        <button onclick="fecharProResPassthroughModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Codec:</label>
+            <select id="prores-codec" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularProResPassthrough()">
+              <option value="prores" selected>Apple ProRes</option>
+              <option value="dnxhr">Avid DNxHR</option>
+              <option value="h264">H.264 (AVC)</option>
+              <option value="hevc">HEVC (H.265)</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Filtros Visuais:</label>
+            <select id="prores-graded" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularProResPassthrough()">
+              <option value="0" selected>Nenhum (Corte Seco Intacto)</option>
+              <option value="1">Color Grading / Efeitos Ativos</option>
+            </select>
+          </div>
+        </div>
+        <div id="prores-passthrough-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharProResPassthroughModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Proteção de Desgaste NAND 64KB -->
+  <div id="wear-mitigator-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🛡️</span> Mitigador de Desgaste NAND SSD (WAF Shield)
+        </h3>
+        <button onclick="fecharWearMitigatorModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="wear-mitigator-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-primary" onclick="simularWearMitigator()">Simular Coalescência 64KB</button>
+        <button class="btn btn-secondary" onclick="fecharWearMitigatorModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -7764,6 +8019,32 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
         elif self.path.startswith("/api/pipeline/shader_warmup/execute"):
             warmup_data = GPUShaderWarmupPipelineCache.warmup_core_shaders()
             return self.send_json({"ok": True, "warmup": warmup_data})
+        elif self.path.startswith("/api/core/numa/topology"):
+            topology_data = NUMANodeMemoryLocalityBinder.get_numa_binding_topology()
+            return self.send_json({"ok": True, "topology": topology_data})
+        elif self.path.startswith("/api/editing/bezier_fixed/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            prog_val = float(params.get("progress", [0.5])[0])
+            eased_val = BezierEasingFixedPointEvaluator.evaluate_ease_in_out(prog_val)
+            bench_data = BezierEasingFixedPointEvaluator.benchmark_fixed_point_savings()
+            bench_data["progress"] = prog_val
+            bench_data["eased_value"] = round(eased_val, 4)
+            return self.send_json({"ok": True, "bezier": bench_data})
+        elif self.path.startswith("/api/media/passthrough/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            codec_val = params.get("codec", ["prores"])[0]
+            graded_val = int(params.get("graded", [0])[0])
+            pass_data = ProResDNxHRPassthroughMuxer.evaluate_clip_passthrough_viability(
+                codec_name=codec_val,
+                has_color_grading=bool(graded_val)
+            )
+            return self.send_json({"ok": True, "passthrough": pass_data})
+        elif self.path.startswith("/api/storage/wear_mitigator/simulate"):
+            mitigator = JournalPageWearLevelingMitigator()
+            wear_data = mitigator.calculate_wear_savings()
+            return self.send_json({"ok": True, "mitigator": wear_data})
         else:
             self.send_response(404)
             self.end_headers()

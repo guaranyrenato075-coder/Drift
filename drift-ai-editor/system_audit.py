@@ -324,6 +324,10 @@ def audit_system():
         "editing.lossless_audio_crossfade_integer_lut",
         "media.mp4_moov_atom_early_detector",
         "pipeline.gpu_shader_warmup_pipeline_cache",
+        "core.numa_node_memory_locality_binder",
+        "editing.bezier_easing_fixed_point_evaluator",
+        "media.prores_dnxhr_passthrough_muxer",
+        "storage.journal_page_wear_leveling_mitigator",
     ]
 
     for mod_name in modules_to_test:
