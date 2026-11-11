@@ -186,6 +186,10 @@ from editing.lazy_timeline_virtualizer import LazyTimelineVirtualizer
 from audio.flac_in_memory_scratchpad import FlacInMemoryScratchpad
 from storage.zero_fragmentation_preallocator import ZeroFragmentationPreallocator
 from core.green_wattage_capper import GreenWattageCapper
+from core.windows_background_thread_qos_governor import WindowsBackgroundThreadQoSGovernor
+from editing.alpha_channel_integer_fast_blender import AlphaChannelIntegerFastBlender
+from media.mp3_aac_padding_silence_trimmer import MP3AACPaddingSilenceTrimmer
+from pipeline.gpu_asynchronous_compute_queue_arbiter import GPUAsynchronousComputeQueueArbiter
 
 RAM_BUFFER = RamDiskBufferManager()
 MEDIA_DEDUP = MediaDeduplicator()
@@ -484,6 +488,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#f43f5e; color:#ffe4e6; font-weight:600;" onclick="abrirInteger3DLUTModal()">🎬 3D LUT .CUBE Inteiro (88% FPU Relief)</button>
       <button class="btn btn-secondary" style="border-color:#0284c7; color:#e0f2fe; font-weight:600;" onclick="abrirAVSyncModal()">⏱️ Sincronismo A/V Assintótico (Zero Resample)</button>
       <button class="btn btn-secondary" style="border-color:#a855f7; color:#f3e8ff; font-weight:600;" onclick="abrirVRAMSlabModal()">🧱 Alocador Slab VRAM (Zero Fragmentação)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirEcoQoSModal()">🌿 Governador Windows EcoQoS (E-Cores Offload)</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#e0f2fe; font-weight:600;" onclick="abrirAlphaBlenderModal()">⚡ Alpha Blender Inteiro (90% Menos FPU)</button>
+      <button class="btn btn-secondary" style="border-color:#fbbf24; color:#fef3c7; font-weight:600;" onclick="abrirPaddingTrimmerModal()">✂️ Trimmer de Silêncio MP3/AAC (Zero Delay Priming)</button>
+      <button class="btn btn-secondary" style="border-color:#818cf8; color:#e0e7ff; font-weight:600;" onclick="abrirAsyncQueueModal()">🔀 Árbitro de Filas Assíncronas GPU (Zero SM Stall)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -5843,6 +5851,150 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro no VRAM Slab: ${e.message}</div>`;
       }
     }
+
+    async function abrirEcoQoSModal() {
+      document.getElementById('eco-qos-modal').style.display = 'flex';
+      consultarEcoQoS();
+    }
+    function fecharEcoQoSModal() {
+      document.getElementById('eco-qos-modal').style.display = 'none';
+    }
+    async function consultarEcoQoS() {
+      const contentEl = document.getElementById('eco-qos-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Aplicando diretiva EcoQoS para threads secundárias...</div>';
+      try {
+        const res = await fetch('/api/core/eco_qos/apply');
+        const data = await res.json();
+        if (data.ok && data.eco_qos) {
+          const q = data.eco_qos;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#10b981;">EcoQoS Ativo: ${q.eco_qos_enabled ? 'SIM (Power Throttling)' : 'NÃO'}</span>
+                <span style="background:rgba(16,185,129,0.2); color:#d1fae5; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${q.background_power_reduction_pct}% Energia Threads
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Afinidade de Núcleos: <strong>${q.target_cores_affinity}</strong> | Chamada Nativa Win32: <strong>${q.applied_native_win32 ? 'Ativa' : 'Emulada'}</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">Alívio Térmico nos P-Cores: -${q.p_core_thermal_relief_pct}%</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${q.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no EcoQoS: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirAlphaBlenderModal() {
+      document.getElementById('alpha-blender-modal').style.display = 'flex';
+      consultarAlphaBlender();
+    }
+    function fecharAlphaBlenderModal() {
+      document.getElementById('alpha-blender-modal').style.display = 'none';
+    }
+    async function consultarAlphaBlender() {
+      const contentEl = document.getElementById('alpha-blender-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Executando benchmark do Alpha Blender Inteiro...</div>';
+      try {
+        const res = await fetch('/api/editing/alpha_blend/benchmark');
+        const data = await res.json();
+        if (data.ok && data.blender) {
+          const b = data.blender;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#38bdf8;">${b.blend_algorithm}</span>
+                <span style="background:rgba(56,189,248,0.2); color:#e0f2fe; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${b.fpu_workload_reduction_pct}% Carga FPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Pixels Avaliados (1080p): <strong>${b.tested_pixels.toLocaleString()}</strong> | Conversões Float Eliminadas: <strong>${b.float_conversions_eliminated_per_frame.toLocaleString()}/frame</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#38bdf8;">${b.render_fps_gain}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${b.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Alpha Blender: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirPaddingTrimmerModal() {
+      document.getElementById('padding-trimmer-modal').style.display = 'flex';
+      consultarPaddingTrimmer();
+    }
+    function fecharPaddingTrimmerModal() {
+      document.getElementById('padding-trimmer-modal').style.display = 'none';
+    }
+    async function consultarPaddingTrimmer() {
+      const contentEl = document.getElementById('padding-trimmer-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Analisando priming silence em codecs MP3 e AAC...</div>';
+      try {
+        const res = await fetch('/api/media/audio_padding/analyze');
+        const data = await res.json();
+        if (data.ok && data.padding) {
+          const p = data.padding;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#fbbf24;">Codec ${p.codec} (${p.sample_rate_hz} Hz)</span>
+                <span style="background:rgba(251,191,36,0.2); color:#fef3c7; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  Zero Re-encode (-${p.cpu_encoding_power_saved_pct}% CPU)
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Amostras de Priming: <strong>${p.priming_samples_detected}</strong> | Atraso Inicial Removido: <strong>${p.initial_silence_delay_ms} ms</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">Looping Perfeito: ${p.seamless_looping_ready ? 'Sim (Sem Gap de Áudio)' : 'Não'}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${p.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Padding Trimmer: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirAsyncQueueModal() {
+      document.getElementById('async-queue-modal').style.display = 'flex';
+      consultarAsyncQueue();
+    }
+    function fecharAsyncQueueModal() {
+      document.getElementById('async-queue-modal').style.display = 'none';
+    }
+    async function consultarAsyncQueue() {
+      const contentEl = document.getElementById('async-queue-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Planejando filas de computação assíncrona da GPU...</div>';
+      try {
+        const res = await fetch('/api/pipeline/gpu_async_queues/plan');
+        const data = await res.json();
+        if (data.ok && data.queues) {
+          const g = data.queues;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#818cf8;">${g.total_queues_active} Filas de Hardware Ativas</span>
+                <span style="background:rgba(129,140,248,0.2); color:#e0e7ff; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${g.gpu_pipeline_stall_reduction_pct}% Stalls GPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Filas em Paralelo: <strong>${g.active_hardware_queues.join(' + ')}</strong> | Eficiência Concorrente: <strong>+${g.concurrency_efficiency_boost_pct}%</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">Dissipação Térmica: ${g.thermal_load_distribution}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${g.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Árbitro de Filas GPU: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -7973,6 +8125,78 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal EcoQoS Governor -->
+  <div id="eco-qos-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🌿</span> Governador Windows EcoQoS (E-Cores Offload)
+        </h3>
+        <button onclick="fecharEcoQoSModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="eco-qos-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharEcoQoSModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Alpha Blender -->
+  <div id="alpha-blender-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>⚡</span> Alpha Blender Inteiro (90% Menos FPU)
+        </h3>
+        <button onclick="fecharAlphaBlenderModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="alpha-blender-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAlphaBlenderModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Padding Trimmer -->
+  <div id="padding-trimmer-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>✂️</span> Trimmer de Silêncio MP3/AAC (Zero Delay Priming)
+        </h3>
+        <button onclick="fecharPaddingTrimmerModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="padding-trimmer-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharPaddingTrimmerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Async Compute Queue -->
+  <div id="async-queue-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🔀</span> Árbitro de Filas Assíncronas GPU (Zero SM Stall)
+        </h3>
+        <button onclick="fecharAsyncQueueModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="async-queue-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAsyncQueueModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -9168,6 +9392,18 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
         elif self.path.startswith("/api/pipeline/vram_slab/analyze"):
             vram_data = VRAMPagedPoolFragmentationDefrag.analyze_vram_slab_efficiency()
             return self.send_json({"ok": True, "vram": vram_data})
+        elif self.path.startswith("/api/core/eco_qos/apply"):
+            eco_data = WindowsBackgroundThreadQoSGovernor.apply_eco_qos_policy(enable_eco_qos=True)
+            return self.send_json({"ok": True, "eco_qos": eco_data})
+        elif self.path.startswith("/api/editing/alpha_blend/benchmark"):
+            blend_data = AlphaChannelIntegerFastBlender.benchmark_blend_operations()
+            return self.send_json({"ok": True, "blender": blend_data})
+        elif self.path.startswith("/api/media/audio_padding/analyze"):
+            padding_data = MP3AACPaddingSilenceTrimmer.analyze_audio_padding(codec="mp3")
+            return self.send_json({"ok": True, "padding": padding_data})
+        elif self.path.startswith("/api/pipeline/gpu_async_queues/plan"):
+            queue_data = GPUAsynchronousComputeQueueArbiter.dispatch_workload_plan()
+            return self.send_json({"ok": True, "queues": queue_data})
         else:
             self.send_response(404)
             self.end_headers()

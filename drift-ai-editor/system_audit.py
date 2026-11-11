@@ -344,6 +344,10 @@ def audit_system():
         "editing.integer_matrix_3d_lut_interpolator",
         "media.smart_av_sync_drift_compensator",
         "pipeline.vram_paged_pool_fragmentation_defrag",
+        "core.windows_background_thread_qos_governor",
+        "editing.alpha_channel_integer_fast_blender",
+        "media.mp3_aac_padding_silence_trimmer",
+        "pipeline.gpu_asynchronous_compute_queue_arbiter",
     ]
 
     for mod_name in modules_to_test:
