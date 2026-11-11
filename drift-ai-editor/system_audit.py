@@ -328,6 +328,10 @@ def audit_system():
         "editing.bezier_easing_fixed_point_evaluator",
         "media.prores_dnxhr_passthrough_muxer",
         "storage.journal_page_wear_leveling_mitigator",
+        "core.pcie_bandwidth_saturation_guard",
+        "editing.sub_frame_audio_phase_aligner",
+        "media.variable_bitrate_pacing_governor",
+        "pipeline.async_worker_io_pressure_backpressure_gate",
     ]
 
     for mod_name in modules_to_test:

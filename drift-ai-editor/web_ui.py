@@ -146,6 +146,10 @@ from core.numa_node_memory_locality_binder import NUMANodeMemoryLocalityBinder
 from editing.bezier_easing_fixed_point_evaluator import BezierEasingFixedPointEvaluator
 from media.prores_dnxhr_passthrough_muxer import ProResDNxHRPassthroughMuxer
 from storage.journal_page_wear_leveling_mitigator import JournalPageWearLevelingMitigator
+from core.pcie_bandwidth_saturation_guard import PCIeBandwidthSaturationGuard
+from editing.sub_frame_audio_phase_aligner import SubFrameAudioPhaseAligner
+from media.variable_bitrate_pacing_governor import VariableBitratePacingGovernor
+from pipeline.async_worker_io_pressure_backpressure_gate import AsyncWorkerIOPressureBackpressureGate
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -452,6 +456,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fef3c7; font-weight:600;" onclick="abrirBezierFixedModal()">📐 Bezier Easing Q16.16 (Zero FPU Load)</button>
       <button class="btn btn-secondary" style="border-color:#22c55e; color:#dcfce7; font-weight:600;" onclick="abrirProResPassthroughModal()">🎬 Passthrough ProRes/DNxHR (Zero Render)</button>
       <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirWearMitigatorModal()">🛡️ Proteção de Desgaste NAND 64KB (WAF Shield)</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#e0f2fe; font-weight:600;" onclick="abrirPCIeGuardModal()">⚡ Guarda de Barramento PCIe (No Bus Saturation)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirPhaseAlignerModal()">🔊 Alinhador Zero-Crossing (Proteção Acústica)</button>
+      <button class="btn btn-secondary" style="border-color:#f97316; color:#ffedd5; font-weight:600;" onclick="abrirVBVGovernorModal()">🔋 Amortecedor VBR (Anti-Pico VRM da GPU)</button>
+      <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirBackpressureGateModal()">🛑 Portão Backpressure SSD (Anti-Throttling)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -5217,6 +5225,158 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro no mitigador de desgaste: ${e.message}</div>`;
       }
     }
+
+    // --- Funções do Pacote Hardware-Armor Genesis ---
+    async function abrirPCIeGuardModal() {
+      document.getElementById('pcie-guard-modal').style.display = 'flex';
+      calcularPCIeGuard();
+    }
+    function fecharPCIeGuardModal() {
+      document.getElementById('pcie-guard-modal').style.display = 'none';
+    }
+    async function calcularPCIeGuard() {
+      const gen = document.getElementById('pcie-gen')?.value || 'gen4';
+      const contentEl = document.getElementById('pcie-guard-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando taxa de barramento PCIe...</div>';
+      try {
+        const res = await fetch(`/api/core/pcie/pacing?gen=${gen}`);
+        const data = await res.json();
+        if (data.ok && data.pcie) {
+          const p = data.pcie;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#38bdf8;">PCIe ${p.pcie_generation} (${p.resolution} @ ${p.fps}fps)</span>
+                <span style="background:rgba(56,189,248,0.2); color:#bae6fd; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  ${p.bus_utilization_pct}% Utilização
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Demanda: <strong>${p.bandwidth_required_gbps} GB/s</strong> (Máx: ${p.pcie_max_bandwidth_gbps} GB/s) | Estado: <strong>${p.bus_safety_state}</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${p.thermal_stability}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e0f2fe;">${p.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no PCIe Guard: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirPhaseAlignerModal() {
+      document.getElementById('phase-aligner-modal').style.display = 'flex';
+      alinharPhaseZeroCrossing();
+    }
+    function fecharPhaseAlignerModal() {
+      document.getElementById('phase-aligner-modal').style.display = 'none';
+    }
+    async function alinharPhaseZeroCrossing() {
+      const contentEl = document.getElementById('phase-aligner-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Localizando ponto de passagem por zero (Zero-Crossing)...</div>';
+      try {
+        const res = await fetch('/api/editing/phase_aligner/snap');
+        const data = await res.json();
+        if (data.ok && data.alignment) {
+          const a = data.alignment;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#10b981;">Corte Nominal: #${a.nominal_cut_index} -> Ajustado: #${a.adjusted_cut_index}</span>
+                <span style="background:rgba(16,185,129,0.2); color:#a7f3d0; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  Zero-Crossing Ativo
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Deslocamento: <strong>${a.offset_samples > 0 ? '+' : ''}${a.offset_samples} amostras</strong> | Transiente DC Eliminado: Amplitude ${a.original_cut_amplitude} -> ${a.snapped_zero_amplitude}
+              </div>
+              <div style="font-size:0.8rem; color:#86efac;">${a.speaker_protection_active}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#d1fae5;">${a.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no alinhamento de fase: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirVBVGovernorModal() {
+      document.getElementById('vbv-governor-modal').style.display = 'flex';
+      calcularVBVGovernor();
+    }
+    function fecharVBVGovernorModal() {
+      document.getElementById('vbv-governor-modal').style.display = 'none';
+    }
+    async function calcularVBVGovernor() {
+      const br = document.getElementById('vbv-bitrate')?.value || '15000';
+      const enc = document.getElementById('vbv-encoder')?.value || 'nvenc';
+      const contentEl = document.getElementById('vbv-governor-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando modulação de buffer VBV anti-pico...</div>';
+      try {
+        const res = await fetch(`/api/media/vbv_pacing/calculate?bitrate=${br}&encoder=${enc}`);
+        const data = await res.json();
+        if (data.ok && data.vbv) {
+          const v = data.vbv;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#f97316;">${v.encoder} (Alvo: ${v.target_bitrate_kbps} kbps)</span>
+                <span style="background:rgba(249,115,22,0.2); color:#fed7aa; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${v.vrm_current_spike_suppression_pct}% Picos de VRM
+                </span>
+              </div>
+              <div style="font-size:0.75rem; font-family:monospace; color:#fdba74; background:#0f172a; padding:6px; border-radius:4px; margin:8px 0;">
+                FFmpeg VBV Flags: ${v.ffmpeg_vbv_flags}
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">
+                Teto de Bitrate: <strong>${v.maxrate_kbps} kbps</strong> | Buffer: <strong>${v.bufsize_kbps} kbps</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#ffedd5;">${v.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no VBV Governor: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirBackpressureGateModal() {
+      document.getElementById('backpressure-gate-modal').style.display = 'flex';
+      avaliarBackpressureGate();
+    }
+    function fecharBackpressureGateModal() {
+      document.getElementById('backpressure-gate-modal').style.display = 'none';
+    }
+    async function avaliarBackpressureGate() {
+      const q = document.getElementById('backpressure-queue')?.value || '20';
+      const contentEl = document.getElementById('backpressure-gate-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Avaliando contrapressão do controlador SSD...</div>';
+      try {
+        const res = await fetch(`/api/pipeline/backpressure_gate/evaluate?tasks=${q}`);
+        const data = await res.json();
+        if (data.ok && data.gate) {
+          const g = data.gate;
+          const badgeColor = g.gate_state === 'THROTTLED' ? '#ef4444' : (g.gate_state === 'CLEAR' ? '#22c55e' : '#f59e0b');
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:${badgeColor};">Estado: ${g.gate_state} (${g.current_pending_tasks} Tarefas)</span>
+                <span style="background:rgba(139,92,246,0.2); color:#ddd6fe; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  Pausa: ${g.recommended_hold_delay_ms} ms
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Teto Seguro de Fila: ${g.max_safe_queue_depth} | Contrapressão: <strong>${g.backpressure_active ? 'Ativa' : 'Inativa'}</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${g.ssd_controller_health}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#ede9fe;">${g.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Backpressure Gate: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -6945,6 +7105,114 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal Guarda de Barramento PCIe -->
+  <div id="pcie-guard-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>⚡</span> Guarda de Barramento PCIe (No Saturation)
+        </h3>
+        <button onclick="fecharPCIeGuardModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Geração PCIe:</label>
+          <select id="pcie-gen" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularPCIeGuard()">
+            <option value="gen3">PCIe Gen 3 x16 (15.75 GB/s)</option>
+            <option value="gen4" selected>PCIe Gen 4 x16 (31.5 GB/s)</option>
+            <option value="gen5">PCIe Gen 5 x16 (63.0 GB/s)</option>
+          </select>
+        </div>
+        <div id="pcie-guard-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharPCIeGuardModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Alinhador Zero-Crossing de Fase -->
+  <div id="phase-aligner-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🔊</span> Alinhador Zero-Crossing (Proteção de Falantes)
+        </h3>
+        <button onclick="fecharPhaseAlignerModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="phase-aligner-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-primary" onclick="alinharPhaseZeroCrossing()">Reavaliar Ponto Zero</button>
+        <button class="btn btn-secondary" onclick="fecharPhaseAlignerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Amortecedor VBR Anti-Pico VRM -->
+  <div id="vbv-governor-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:580px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🔋</span> Amortecedor VBR (Anti-Pico VRM da GPU)
+        </h3>
+        <button onclick="fecharVBVGovernorModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Codificador:</label>
+            <select id="vbv-encoder" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularVBVGovernor()">
+              <option value="nvenc" selected>NVIDIA NVENC</option>
+              <option value="qsv">Intel QuickSync</option>
+              <option value="amf">AMD AMF</option>
+              <option value="x264">Software x264</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Bitrate Alvo:</label>
+            <select id="vbv-bitrate" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularVBVGovernor()">
+              <option value="8000">8.000 kbps (1080p Web)</option>
+              <option value="15000" selected>15.000 kbps (1080p High / 2K)</option>
+              <option value="40000">40.000 kbps (4K Pro)</option>
+            </select>
+          </div>
+        </div>
+        <div id="vbv-governor-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharVBVGovernorModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Portão Backpressure SSD -->
+  <div id="backpressure-gate-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🛑</span> Portão Backpressure SSD (Anti-Throttling)
+        </h3>
+        <button onclick="fecharBackpressureGateModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Tarefas na Fila:</label>
+          <select id="backpressure-queue" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarBackpressureGate()">
+            <option value="8">8 Tarefas (Fluxo Normal / Livre)</option>
+            <option value="20" selected>20 Tarefas (Zona de Pacing Preventivo)</option>
+            <option value="36">36 Tarefas (Sobrecarga / Amortecimento Ativo)</option>
+          </select>
+        </div>
+        <div id="backpressure-gate-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharBackpressureGateModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -8045,6 +8313,29 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             mitigator = JournalPageWearLevelingMitigator()
             wear_data = mitigator.calculate_wear_savings()
             return self.send_json({"ok": True, "mitigator": wear_data})
+        elif self.path.startswith("/api/core/pcie/pacing"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            gen_val = params.get("gen", ["gen4"])[0]
+            pcie_data = PCIeBandwidthSaturationGuard.calculate_transfer_pacing(pcie_generation=gen_val)
+            return self.send_json({"ok": True, "pcie": pcie_data})
+        elif self.path.startswith("/api/editing/phase_aligner/snap"):
+            sim_samples = [int(24000 * math.sin(i * 0.15)) for i in range(128)]
+            align_data = SubFrameAudioPhaseAligner.snap_to_zero_crossing(sim_samples, nominal_cut_index=42, search_window=16)
+            return self.send_json({"ok": True, "alignment": align_data})
+        elif self.path.startswith("/api/media/vbv_pacing/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            br_val = int(params.get("bitrate", [15000])[0])
+            enc_val = params.get("encoder", ["nvenc"])[0]
+            vbv_data = VariableBitratePacingGovernor.calculate_vbv_parameters(target_bitrate_kbps=br_val, encoder_family=enc_val)
+            return self.send_json({"ok": True, "vbv": vbv_data})
+        elif self.path.startswith("/api/pipeline/backpressure_gate/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            tasks_val = int(params.get("tasks", [20])[0])
+            gate_data = AsyncWorkerIOPressureBackpressureGate.evaluate_queue_backpressure(current_pending_tasks=tasks_val)
+            return self.send_json({"ok": True, "gate": gate_data})
         else:
             self.send_response(404)
             self.end_headers()
