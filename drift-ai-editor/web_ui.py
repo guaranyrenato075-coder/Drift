@@ -150,6 +150,10 @@ from core.pcie_bandwidth_saturation_guard import PCIeBandwidthSaturationGuard
 from editing.sub_frame_audio_phase_aligner import SubFrameAudioPhaseAligner
 from media.variable_bitrate_pacing_governor import VariableBitratePacingGovernor
 from pipeline.async_worker_io_pressure_backpressure_gate import AsyncWorkerIOPressureBackpressureGate
+from core.ram_dirty_page_writeback_flusher import RAMDirtyPageWritebackFlusher
+from editing.avx_downclocking_frequency_guard import AVXDownclockingFrequencyGuard
+from media.raw_stream_circular_io_buffer import RawStreamCircularIOBuffer
+from pipeline.gpu_power_state_transition_shield import GPUPowerStateTransitionShield
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -460,6 +464,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirPhaseAlignerModal()">🔊 Alinhador Zero-Crossing (Proteção Acústica)</button>
       <button class="btn btn-secondary" style="border-color:#f97316; color:#ffedd5; font-weight:600;" onclick="abrirVBVGovernorModal()">🔋 Amortecedor VBR (Anti-Pico VRM da GPU)</button>
       <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirBackpressureGateModal()">🛑 Portão Backpressure SSD (Anti-Throttling)</button>
+      <button class="btn btn-secondary" style="border-color:#06b6d4; color:#cffafe; font-weight:600;" onclick="abrirDirtyFlusherModal()">🌊 Dreno Suave Dirty Pages (Anti-Spike SSD)</button>
+      <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirAVXGuardModal()">🚀 Guarda Turbo SIMD (Anti-Downclocking CPU)</button>
+      <button class="btn btn-secondary" style="border-color:#14b8a6; color:#ccfbf1; font-weight:600;" onclick="abrirRawBufferModal()">🧊 Buffer Circular RAM (Zero .TMP no SSD)</button>
+      <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirDStateShieldModal()">🛡️ Escudo Histerese D-State (Anti-Fadiga GPU)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -5377,6 +5385,153 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Backpressure Gate: ${e.message}</div>`;
       }
     }
+
+    // --- Funções do Pacote Hardware-Armor Infinity ---
+    async function abrirDirtyFlusherModal() {
+      document.getElementById('dirty-flusher-modal').style.display = 'flex';
+      avaliarDirtyFlusher();
+    }
+    function fecharDirtyFlusherModal() {
+      document.getElementById('dirty-flusher-modal').style.display = 'none';
+    }
+    async function avaliarDirtyFlusher() {
+      const dirty = document.getElementById('dirty-flusher-mb')?.value || '48';
+      const contentEl = document.getElementById('dirty-flusher-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando cadência de descarte suave de páginas...</div>';
+      try {
+        const res = await fetch(`/api/core/dirty_flusher/evaluate?dirty_mb=${dirty}`);
+        const data = await res.json();
+        if (data.ok && data.flusher) {
+          const f = data.flusher;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#06b6d4;">${f.pacing_mode} (${f.estimated_dirty_mb} MB)</span>
+                <span style="background:rgba(6,182,212,0.2); color:#cffafe; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${f.io_spike_reduction_pct}% Picos no SSD
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Lote de Dreno: <strong>${f.writeback_batch_mb} MB</strong> | Intervalo Suave: <strong>${f.inter_batch_sleep_ms} ms</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${f.ssd_bus_safety}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e0f2fe;">${f.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Dirty Flusher: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirAVXGuardModal() {
+      document.getElementById('avx-guard-modal').style.display = 'flex';
+      calcularAVXGuard();
+    }
+    function fecharAVXGuardModal() {
+      document.getElementById('avx-guard-modal').style.display = 'none';
+    }
+    async function calcularAVXGuard() {
+      const simd = document.getElementById('avx-guard-simd')?.value || 'avx2';
+      const contentEl = document.getElementById('avx-guard-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando chunking SIMD anti-downclocking...</div>';
+      try {
+        const res = await fetch(`/api/editing/avx_guard/calculate?simd=${simd}`);
+        const data = await res.json();
+        if (data.ok && data.guard) {
+          const g = data.guard;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#eab308;">${g.simd_set} (Chunk: ${g.optimal_chunk_size} amostras)</span>
+                <span style="background:rgba(234,179,8,0.2); color:#fef08a; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  +${g.turbo_clock_penalty_prevented_mhz} MHz Preservados
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Estabilidade de Frequência: <strong>${g.frequency_stability}</strong> | Total de Lotes: ${g.total_batches}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#fef9c3;">${g.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no AVX Guard: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirRawBufferModal() {
+      document.getElementById('raw-buffer-modal').style.display = 'flex';
+      consultarRawBuffer();
+    }
+    function fecharRawBufferModal() {
+      document.getElementById('raw-buffer-modal').style.display = 'none';
+    }
+    async function consultarRawBuffer() {
+      const contentEl = document.getElementById('raw-buffer-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Verificando métricas de buffer circular em RAM...</div>';
+      try {
+        const res = await fetch('/api/media/raw_buffer/metrics');
+        const data = await res.json();
+        if (data.ok && data.buffer) {
+          const b = data.buffer;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#14b8a6;">Capacidade Volátil: ${b.ring_buffer_capacity_mb} MB em RAM</span>
+                <span style="background:rgba(20,184,166,0.2); color:#99f6e4; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  0 Arquivos .TMP
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Escritas Efêmeras Poupadas no SSD: <strong>${b.disk_writes_avoided_mb} MB</strong> | Bytes Streamados: ${b.total_streamed_bytes.toLocaleString()} B
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${b.ssd_wear_protection}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#ccfbf1;">${b.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Raw Buffer: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirDStateShieldModal() {
+      document.getElementById('dstate-shield-modal').style.display = 'flex';
+      avaliarDStateShield();
+    }
+    function fecharDStateShieldModal() {
+      document.getElementById('dstate-shield-modal').style.display = 'none';
+    }
+    async function avaliarDStateShield() {
+      const ms = document.getElementById('dstate-ms')?.value || '250';
+      const contentEl = document.getElementById('dstate-shield-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Avaliando janela de histerese D-State da GPU...</div>';
+      try {
+        const res = await fetch(`/api/pipeline/dstate_shield/evaluate?delta_ms=${ms}`);
+        const data = await res.json();
+        if (data.ok && data.shield) {
+          const s = data.shield;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#ec4899;">${s.gpu_vendor} -> Estado: ${s.recommended_target_state}</span>
+                <span style="background:rgba(236,72,153,0.2); color:#fbcfe8; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${s.bga_solder_fatigue_reduction_pct}% Fadiga BGA
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Tempo Desde Atividade: ${s.time_since_last_activity_ms} ms (Janela: ${s.hysteresis_window_ms} ms) | Ciclo Térmico Evitado: <strong>${s.thermal_cycling_prevented ? 'SIM' : 'NÃO'}</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${s.hardware_longevity_impact}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#fce7f3;">${s.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no D-State Shield: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -7213,6 +7368,103 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal Dreno Suave Dirty Pages -->
+  <div id="dirty-flusher-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🌊</span> Dreno Suave Dirty Pages (Anti-Spike SSD)
+        </h3>
+        <button onclick="fecharDirtyFlusherModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Páginas Modificadas (RAM):</label>
+          <select id="dirty-flusher-mb" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarDirtyFlusher()">
+            <option value="20">20 MB (Carga Mínima / Limpa)</option>
+            <option value="48" selected>48 MB (Carga Normal de Edição)</option>
+            <option value="96">96 MB (Zona de Flush Preventivo)</option>
+            <option value="160">160 MB (Alerta Crítico / Pacing Máximo)</option>
+          </select>
+        </div>
+        <div id="dirty-flusher-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDirtyFlusherModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Guarda Turbo SIMD Anti-Downclocking -->
+  <div id="avx-guard-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🚀</span> Guarda Turbo SIMD (Anti-Downclocking CPU)
+        </h3>
+        <button onclick="fecharAVXGuardModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Conjunto de Instruções:</label>
+          <select id="avx-guard-simd" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularAVXGuard()">
+            <option value="avx2" selected>AVX2 (Padrão 256-bit)</option>
+            <option value="avx512">AVX-512 (Alta Densidade 512-bit)</option>
+            <option value="neon">ARM NEON</option>
+          </select>
+        </div>
+        <div id="avx-guard-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAVXGuardModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Buffer Circular RAM (Zero .TMP) -->
+  <div id="raw-buffer-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🧊</span> Buffer Circular RAM (Zero .TMP no SSD)
+        </h3>
+        <button onclick="fecharRawBufferModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="raw-buffer-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharRawBufferModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Escudo Histerese D-State da GPU -->
+  <div id="dstate-shield-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:580px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🛡️</span> Escudo Histerese D-State (Anti-Fadiga BGA GPU)
+        </h3>
+        <button onclick="fecharDStateShieldModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Tempo Desde Atividade:</label>
+          <select id="dstate-ms" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarDStateShield()">
+            <option value="150">150 ms (Dentro da Histerese - Sem Desligar)</option>
+            <option value="350" selected>350 ms (Transiente Seguro Estabilizado)</option>
+            <option value="750">750 ms (Fora da Janela - Repouso Aprovado)</option>
+          </select>
+        </div>
+        <div id="dstate-shield-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDStateShieldModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -8336,6 +8588,29 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             tasks_val = int(params.get("tasks", [20])[0])
             gate_data = AsyncWorkerIOPressureBackpressureGate.evaluate_queue_backpressure(current_pending_tasks=tasks_val)
             return self.send_json({"ok": True, "gate": gate_data})
+        elif self.path.startswith("/api/core/dirty_flusher/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            dirty_val = float(params.get("dirty_mb", [48.0])[0])
+            flusher_data = RAMDirtyPageWritebackFlusher.evaluate_writeback_cadence(estimated_dirty_mb=dirty_val)
+            return self.send_json({"ok": True, "flusher": flusher_data})
+        elif self.path.startswith("/api/editing/avx_guard/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            simd_val = params.get("simd", ["avx2"])[0]
+            guard_data = AVXDownclockingFrequencyGuard.calculate_simd_chunk_size(total_elements=65536, simd_instruction_set=simd_val)
+            return self.send_json({"ok": True, "guard": guard_data})
+        elif self.path.startswith("/api/media/raw_buffer/metrics"):
+            ring = RawStreamCircularIOBuffer(capacity_bytes=8 * 1024 * 1024)
+            ring.write_stream_chunk(b"\x00" * (512 * 1024))
+            ring_data = ring.get_io_savings()
+            return self.send_json({"ok": True, "buffer": ring_data})
+        elif self.path.startswith("/api/pipeline/dstate_shield/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            delta_val = float(params.get("delta_ms", [250.0])[0])
+            shield_data = GPUPowerStateTransitionShield.evaluate_state_transition(time_since_last_activity_ms=delta_val)
+            return self.send_json({"ok": True, "shield": shield_data})
         else:
             self.send_response(404)
             self.end_headers()
