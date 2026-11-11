@@ -304,6 +304,10 @@ def audit_system():
         "core.thermal_adaptive_render_pacer",
         "media.smart_proxy_resolution_scaler",
         "storage.sqlite_wal_checkpoint_governor",
+        "pipeline.zero_copy_frame_pipe_allocator",
+        "core.ram_working_set_trimmer",
+        "editing.variable_framerate_jitter_smoother",
+        "storage.compact_json_delta_patcher",
     ]
 
     for mod_name in modules_to_test:
