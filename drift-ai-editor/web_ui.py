@@ -138,6 +138,10 @@ from core.thermal_throttling_prediction_governor import ThermalThrottlingPredict
 from storage.sparse_zero_copy_frame_pipe import SparseZeroCopyFramePipe
 from editing.timeline_visual_viewport_culler import TimelineVisualViewportCuller
 from media.audio_resample_subsampling_bypass import AudioResampleSubsamplingBypass
+from core.cpu_cache_l3_affinity_balancer import CPUCacheL3AffinityBalancer
+from editing.lossless_audio_crossfade_integer_lut import LosslessAudioCrossfadeIntegerLUT
+from media.mp4_moov_atom_early_detector import MP4MoovAtomEarlyDetector
+from pipeline.gpu_shader_warmup_pipeline_cache import GPUShaderWarmupPipelineCache
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -436,6 +440,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#0284c7; color:#e0f2fe; font-weight:600;" onclick="abrirSparsePipeModal()">🧊 Pipe Zero-Copy 1080p (Pool RAM)</button>
       <button class="btn btn-secondary" style="border-color:#65a30d; color:#ecfccb; font-weight:600;" onclick="abrirViewportCullerModal()">✂️ Culling de Linha do Tempo O(log N)</button>
       <button class="btn btn-secondary" style="border-color:#0d9488; color:#ccfbf1; font-weight:600;" onclick="abrirAudioBypassModal()">🎵 Bypass Reamostragem (Bitstream)</button>
+      <button class="btn btn-secondary" style="border-color:#6366f1; color:#e0e7ff; font-weight:600;" onclick="abrirCPUAffinityModal()">🧠 Afinidade L3 CPU (Zero Bus Traffic)</button>
+      <button class="btn btn-secondary" style="border-color:#f43f5e; color:#ffe4e6; font-weight:600;" onclick="abrirAudioCrossfadeModal()">🎶 Crossfade Inteiro LUT (No FPU Load)</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#e0f2fe; font-weight:600;" onclick="abrirMoovDetectorModal()">⚡ Leitura FastStart MOOV (SSD Shield)</button>
+      <button class="btn btn-secondary" style="border-color:#a855f7; color:#f3e8ff; font-weight:600;" onclick="abrirShaderWarmupModal()">🛡️ Aquecimento de Shaders GPU (No Stutter)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -4910,6 +4918,149 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro no bypass de áudio: ${e.message}</div>`;
       }
     }
+
+    // --- Funções do Pacote Hardware-Armor Quantum ---
+    async function abrirCPUAffinityModal() {
+      document.getElementById('cpu-affinity-modal').style.display = 'flex';
+      calcularCPUAffinity();
+    }
+    function fecharCPUAffinityModal() {
+      document.getElementById('cpu-affinity-modal').style.display = 'none';
+    }
+    async function calcularCPUAffinity() {
+      const contentEl = document.getElementById('cpu-affinity-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando topologia de núcleos e cluster L3...</div>';
+      try {
+        const res = await fetch('/api/core/cpu_affinity/calculate');
+        const data = await res.json();
+        if (data.ok && data.affinity) {
+          const a = data.affinity;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#818cf8;">Cluster Primário L3: Núcleos [${a.primary_affinity_cores.join(', ')}]</span>
+                <span style="background:rgba(99,102,241,0.2); color:#c7d2fe; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${a.bus_traffic_reduction_pct}% Tráfego de Barramento
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Núcleos Detectados: ${a.logical_cores_detected} | Máscara de Afinidade: <code>${a.affinity_mask_hex}</code> | Ganho Cache Hit: +${a.cache_hit_rate_boost_pct}%
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e0e7ff;">${a.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao balancear L3: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirAudioCrossfadeModal() {
+      document.getElementById('audio-crossfade-modal').style.display = 'flex';
+      calcularAudioCrossfade();
+    }
+    function fecharAudioCrossfadeModal() {
+      document.getElementById('audio-crossfade-modal').style.display = 'none';
+    }
+    async function calcularAudioCrossfade() {
+      const progress = document.getElementById('audio-crossfade-prog')?.value || '0.5';
+      const contentEl = document.getElementById('audio-crossfade-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Consultando tabela inteira de crossfade...</div>';
+      try {
+        const res = await fetch(`/api/editing/audio_crossfade/benchmark?progress=${progress}`);
+        const data = await res.json();
+        if (data.ok && data.crossfade) {
+          const c = data.crossfade;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#fb7185;">Ganho Fade Out: ${c.fade_out_coeff} | Fade In: ${c.fade_in_coeff}</span>
+                <span style="background:rgba(244,63,94,0.2); color:#fecdd3; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${c.fpu_cpu_load_reduction_pct}% Carga da FPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Curva: ${c.curve_type} (${c.table_size_steps} degraus inteiros) | Operações FPU Poupadas: <strong>${c.trig_ops_eliminated_per_second.toLocaleString()} /s</strong>
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#ffe4e6;">${c.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no crossfade inteiro: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirMoovDetectorModal() {
+      document.getElementById('moov-detector-modal').style.display = 'flex';
+      analisarMoovDetector();
+    }
+    function fecharMoovDetectorModal() {
+      document.getElementById('moov-detector-modal').style.display = 'none';
+    }
+    async function analisarMoovDetector() {
+      const sizeMb = document.getElementById('moov-file-size')?.value || '4000';
+      const contentEl = document.getElementById('moov-detector-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Inspecionando posição do átomo MOOV no arquivo...</div>';
+      try {
+        const res = await fetch(`/api/media/moov_detector/analyze?size_mb=${sizeMb}`);
+        const data = await res.json();
+        if (data.ok && data.detector) {
+          const d = data.detector;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#38bdf8;">Arquivo de ${d.file_size_mb} MB (${d.moov_location})</span>
+                <span style="background:rgba(56,189,248,0.2); color:#bae6fd; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${d.ssd_read_reduction_pct}% Leituras no SSD
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Bytes Lidos para Indexação: ${d.bytes_read_for_index.toLocaleString()} B | Volume Desnecessário Poupado no SSD: <strong>${d.ssd_io_saved_mb} MB</strong>
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e0f2fe;">${d.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no detector MOOV: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirShaderWarmupModal() {
+      document.getElementById('shader-warmup-modal').style.display = 'flex';
+      aquecerShadersGPU();
+    }
+    function fecharShaderWarmupModal() {
+      document.getElementById('shader-warmup-modal').style.display = 'none';
+    }
+    async function aquecerShadersGPU() {
+      const contentEl = document.getElementById('shader-warmup-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Pré-aquecendo bytecode de shaders de aceleração por hardware...</div>';
+      try {
+        const res = await fetch('/api/pipeline/shader_warmup/execute');
+        const data = await res.json();
+        if (data.ok && data.warmup) {
+          const w = data.warmup;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#c084fc;">${w.total_shaders_cached} Shaders em Cache Persistente</span>
+                <span style="background:rgba(192,132,252,0.2); color:#f3e8ff; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${w.stutter_reduction_pct}% Micro-Stutters
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Estado: <strong>${w.timeline_playback_readiness}</strong> | Shaders compilados: ${w.cached_shader_keys.join(', ')}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${w.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no aquecimento de shaders: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -6449,6 +6600,96 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal Afinidade L3 CPU -->
+  <div id="cpu-affinity-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🧠</span> Afinidade L3 CPU & Domínio de Cache
+        </h3>
+        <button onclick="fecharCPUAffinityModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="cpu-affinity-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharCPUAffinityModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Crossfade Inteiro LUT -->
+  <div id="audio-crossfade-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🎶</span> Crossfade Inteiro LUT (Equal-Power Curve)
+        </h3>
+        <button onclick="fecharAudioCrossfadeModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Progresso da Transição:</label>
+          <select id="audio-crossfade-prog" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularAudioCrossfade()">
+            <option value="0.0">0% (Início: Faixa A cheia)</option>
+            <option value="0.25">25% (Crossfade suave)</option>
+            <option value="0.5" selected>50% (Ponto Médio de Potência Constante)</option>
+            <option value="0.75">75% (Transição avançada)</option>
+            <option value="1.0">100% (Fim: Faixa B cheia)</option>
+          </select>
+        </div>
+        <div id="audio-crossfade-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAudioCrossfadeModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal FastStart MOOV Detector -->
+  <div id="moov-detector-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>⚡</span> Leitura FastStart MOOV (SSD Shield)
+        </h3>
+        <button onclick="fecharMoovDetectorModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Tamanho do Arquivo:</label>
+          <select id="moov-file-size" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="analisarMoovDetector()">
+            <option value="500">500 MB (Clipe Curto)</option>
+            <option value="4000" selected>4 GB (Take 4K Longo)</option>
+            <option value="16000">16 GB (Gravação ProRes/Raw)</option>
+          </select>
+        </div>
+        <div id="moov-detector-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharMoovDetectorModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Aquecimento de Shaders GPU -->
+  <div id="shader-warmup-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🛡️</span> Aquecimento de Shaders GPU (Anti-Stutter)
+        </h3>
+        <button onclick="fecharShaderWarmupModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="shader-warmup-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharShaderWarmupModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -7498,6 +7739,31 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             tgt_val = int(params.get("tgt_hz", [48000])[0])
             bypass_data = AudioResampleSubsamplingBypass.evaluate_audio_filter_chain(source_sample_rate_hz=src_val, target_sample_rate_hz=tgt_val)
             return self.send_json({"ok": True, "bypass": bypass_data})
+        elif self.path.startswith("/api/core/cpu_affinity/calculate"):
+            affinity_data = CPUCacheL3AffinityBalancer.calculate_optimal_thread_affinity()
+            return self.send_json({"ok": True, "affinity": affinity_data})
+        elif self.path.startswith("/api/editing/audio_crossfade/benchmark"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            prog_val = float(params.get("progress", [0.5])[0])
+            out_c, in_c = LosslessAudioCrossfadeIntegerLUT.get_crossfade_coefficients(prog_val)
+            bench_data = LosslessAudioCrossfadeIntegerLUT.benchmark_gain_lookup()
+            bench_data["fade_out_coeff"] = out_c
+            bench_data["fade_in_coeff"] = in_c
+            return self.send_json({"ok": True, "crossfade": bench_data})
+        elif self.path.startswith("/api/media/moov_detector/analyze"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            size_mb = float(params.get("size_mb", [4000.0])[0])
+            header_sample = b"\x00\x00\x00\x20ftypmp42\x00\x00\x01\x00moov\x00\x00\x00lmvhd"
+            detector_data = MP4MoovAtomEarlyDetector.analyze_moov_placement(
+                file_size_bytes=int(size_mb * 1024 * 1024),
+                header_bytes=header_sample
+            )
+            return self.send_json({"ok": True, "detector": detector_data})
+        elif self.path.startswith("/api/pipeline/shader_warmup/execute"):
+            warmup_data = GPUShaderWarmupPipelineCache.warmup_core_shaders()
+            return self.send_json({"ok": True, "warmup": warmup_data})
         else:
             self.send_response(404)
             self.end_headers()

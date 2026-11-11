@@ -320,6 +320,10 @@ def audit_system():
         "storage.sparse_zero_copy_frame_pipe",
         "editing.timeline_visual_viewport_culler",
         "media.audio_resample_subsampling_bypass",
+        "core.cpu_cache_l3_affinity_balancer",
+        "editing.lossless_audio_crossfade_integer_lut",
+        "media.mp4_moov_atom_early_detector",
+        "pipeline.gpu_shader_warmup_pipeline_cache",
     ]
 
     for mod_name in modules_to_test:
