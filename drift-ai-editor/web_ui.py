@@ -118,6 +118,10 @@ from editing.smart_selective_rerender_cache import SmartSelectiveRerenderCache
 from core.cpu_thread_affinity_governor import CPUThreadAffinityGovernor
 from pipeline.pre_render_deadweight_pruner import PreRenderDeadweightPruner
 from storage.ssd_write_fatigue_mitigator import SSDWriteFatigueMitigator
+from audio.lossless_audio_pass_through_engine import LosslessAudioPassThroughEngine
+from core.thermal_adaptive_render_pacer import ThermalAdaptiveRenderPacer
+from media.smart_proxy_resolution_scaler import SmartProxyResolutionScaler
+from storage.sqlite_wal_checkpoint_governor import SQLiteWALCheckpointGovernor
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -396,6 +400,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#fbbf24; color:#fef3c7; font-weight:600;" onclick="abrirSelectiveRerenderModal()">⚡ Render Seletivo (Zero GPU Waste)</button>
       <button class="btn btn-secondary" style="border-color:#f472b6; color:#fce7f3; font-weight:600;" onclick="abrirPrunerModal()">🧹 Poda de Cenas Inertes</button>
       <button class="btn btn-secondary" style="border-color:#4ade80; color:#dcfce7; font-weight:600;" onclick="abrirSSDFatigueModal()">💾 Preservação de SSD (Zero Wear)</button>
+      <button class="btn btn-secondary" style="border-color:#a3e635; color:#ecfccb; font-weight:600;" onclick="abrirAudioPassThroughModal()">🎵 Áudio Pass-Through (Zero CPU)</button>
+      <button class="btn btn-secondary" style="border-color:#f97316; color:#ffedd5; font-weight:600;" onclick="abrirThermalPacerModal()">🌡️ Pacer Térmico Anti-Aquecimento</button>
+      <button class="btn btn-secondary" style="border-color:#06b6d4; color:#cffafe; font-weight:600;" onclick="abrirSmartProxyModal()">👁️ Proxies Leves (Economia 70% RAM)</button>
+      <button class="btn btn-secondary" style="border-color:#9333ea; color:#f3e8ff; font-weight:600;" onclick="executarWALCheckpoint()">🗄️ Manutenção WAL do SQLite</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -4176,6 +4184,131 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao estimar: ${e.message}</div>`;
       }
     }
+
+    // Audio Pass-Through
+    function abrirAudioPassThroughModal() {
+      document.getElementById('audio-passthrough-modal').style.display = 'flex';
+      avaliarAudioPassThrough();
+    }
+    function fecharAudioPassThroughModal() {
+      document.getElementById('audio-passthrough-modal').style.display = 'none';
+    }
+    async function avaliarAudioPassThrough() {
+      const codec = document.getElementById('audio-pt-codec') ? document.getElementById('audio-pt-codec').value : 'aac';
+      const contentEl = document.getElementById('audio-pt-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Verificando compatibilidade de bitstream para cópia direta...</div>';
+      try {
+        const res = await fetch(`/api/audio/passthrough/evaluate?codec=${codec}`);
+        const data = await res.json();
+        if (data.ok && data.evaluation) {
+          const ev = data.evaluation;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#a3e635;">Fidelidade: ${ev.audio_fidelity}</span>
+                <span style="background:rgba(163,230,53,0.2); color:#bef264; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">-${ev.cpu_load_reduction_pct}% CPU Áudio</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">${ev.reason}</div>
+              <div style="margin-top:6px; font-size:0.75rem; font-family:monospace; color:#fde047; background:#0f172a; padding:6px; border-radius:4px;">
+                FFmpeg Audio Flag: ${ev.ffmpeg_audio_flags}
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao avaliar: ${e.message}</div>`;
+      }
+    }
+
+    // Thermal Adaptive Pacer
+    function abrirThermalPacerModal() {
+      document.getElementById('thermal-pacer-modal').style.display = 'flex';
+      calcularThermalPacer();
+    }
+    function fecharThermalPacerModal() {
+      document.getElementById('thermal-pacer-modal').style.display = 'none';
+    }
+    async function calcularThermalPacer() {
+      const prof = document.getElementById('thermal-pacer-prof') ? document.getElementById('thermal-pacer-prof').value : 'silent_eco';
+      const contentEl = document.getElementById('thermal-pacer-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Mapeando curvas de calor e ciclos de resfriamento...</div>';
+      try {
+        const res = await fetch(`/api/hardware/thermal_pacer/calculate?profile=${prof}&work_sec=45`);
+        const data = await res.json();
+        if (data.ok && data.pacer) {
+          const p = data.pacer;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#f97316;">${p.profile_name}</span>
+                <span style="background:rgba(249,115,22,0.2); color:#fdba74; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">Meta: < ${p.target_max_temp_c}°C</span>
+              </div>
+              <div style="display:flex; gap:16px; margin:8px 0; font-size:0.85rem;">
+                <span style="color:#93c5fd;">Ventoinhas: ${p.fan_noise_estimate}</span>
+                <span style="color:#a7f3d0;">Pausa Preventiva: ${p.pause_ms}ms</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${p.advice}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular: ${e.message}</div>`;
+      }
+    }
+
+    // Smart Proxy Scaler
+    function abrirSmartProxyModal() {
+      document.getElementById('smart-proxy-modal').style.display = 'flex';
+      calcularSmartProxy();
+    }
+    function fecharSmartProxyModal() {
+      document.getElementById('smart-proxy-modal').style.display = 'none';
+    }
+    async function calcularSmartProxy() {
+      const tier = document.getElementById('smart-proxy-tier') ? document.getElementById('smart-proxy-tier').value : 'ultra_light_540p';
+      const contentEl = document.getElementById('smart-proxy-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando amostragem de resolução leve...</div>';
+      try {
+        const res = await fetch(`/api/media/proxy/calculate?tier=${tier}`);
+        const data = await res.json();
+        if (data.ok && data.proxy_config) {
+          const pc = data.proxy_config;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#06b6d4;">${pc.tier_name}</span>
+                <span style="background:rgba(6,182,212,0.2); color:#67e8f9; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">-${pc.ram_reduction_pct}% RAM</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Resolução Nativa: <b>${pc.source_resolution}</b> -> Proxy Leve: <b>${pc.proxy_resolution}</b>
+              </div>
+              <div style="font-size:0.75rem; font-family:monospace; color:#a5f3fc; background:#0f172a; padding:6px; border-radius:4px;">
+                FFmpeg Downsample: -vf ${pc.ffmpeg_scale_filter} -b:v ${pc.recommended_bitrate}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#86efac;">${pc.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular proxy: ${e.message}</div>`;
+      }
+    }
+
+    // SQLite WAL Checkpoint
+    async function executarWALCheckpoint() {
+      try {
+        const res = await fetch('/api/db/wal_checkpoint', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok && data.checkpoint) {
+          const cp = data.checkpoint;
+          alert(`🗄️ Manutenção WAL do Banco SQLite concluída com sucesso!\n\nEspaço liberado: ${cp.space_freed_kb} KB\nPáginas salvas: ${cp.pages_checkpointed}\n\nO banco de dados foi desfragmentado sem bloquear as leituras do editor.`);
+        } else {
+          alert('Erro ao executar checkpoint: ' + (data.error || 'Falha'));
+        }
+      } catch (e) {
+        alert('Erro ao requisitar checkpoint: ' + e.message);
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -5301,6 +5434,79 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Áudio Pass-Through -->
+  <div id="audio-passthrough-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎵 Lossless Audio Pass-Through (Zero CPU Waste)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharAudioPassThroughModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Formato de Áudio Detectado:</label>
+          <select id="audio-pt-codec" style="padding:6px 10px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarAudioPassThrough()">
+            <option value="aac" selected>AAC 48kHz Stereo (Cópia Direta -c:a copy)</option>
+            <option value="mp3">MP3 44.1kHz Stereo (Compatível MP4)</option>
+            <option value="pcm_s16le">WAV PCM 16-bit</option>
+            <option value="flac">FLAC Lossless</option>
+          </select>
+        </div>
+        <div id="audio-pt-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAudioPassThroughModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Pacer Térmico -->
+  <div id="thermal-pacer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🌡️ Pacer Adaptativo de Arrefecimento Térmico</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharThermalPacerModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Perfil de Alívio Térmico:</label>
+          <select id="thermal-pacer-prof" style="padding:6px 10px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularThermalPacer()">
+            <option value="silent_eco" selected>Silencioso / Frio (< 65°C - Pausa 400ms)</option>
+            <option value="balanced">Equilibrado (65°C a 75°C - Pausa 250ms)</option>
+            <option value="turbo_workstation">Turbo Acelerado (Pausa 100ms)</option>
+          </select>
+        </div>
+        <div id="thermal-pacer-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharThermalPacerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Proxies Inteligentes -->
+  <div id="smart-proxy-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">👁️ Smart Proxy Scaler (Economia de 75% RAM)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharSmartProxyModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Nível de Proxy para a Linha do Tempo:</label>
+          <select id="smart-proxy-tier" style="padding:6px 10px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularSmartProxy()">
+            <option value="ultra_light_540p" selected>540p Ultra-Light (-75% RAM / -93% VRAM)</option>
+            <option value="balanced_720p">720p HD Balanceado (-55% RAM)</option>
+            <option value="full_master_1080p">1080p Full Master (Export Final)</option>
+          </select>
+        </div>
+        <div id="smart-proxy-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharSmartProxyModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -6207,6 +6413,34 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             mb_val = float(params.get("mb", [1200.0])[0])
             ssd_data = SSDWriteFatigueMitigator.calculate_write_savings(int(mb_val * 1024 * 1024), use_ram_scratchpad=True)
             return self.send_json({"ok": True, "ssd_report": ssd_data})
+        elif self.path.startswith("/api/audio/passthrough/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            codec_val = params.get("codec", ["aac"])[0]
+            eval_data = LosslessAudioPassThroughEngine.evaluate_audio_stream_compatibility(
+                codec_name=codec_val,
+                sample_rate=48000,
+                channels=2,
+                target_container="mp4"
+            )
+            return self.send_json({"ok": True, "evaluation": eval_data})
+        elif self.path.startswith("/api/hardware/thermal_pacer/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            prof = params.get("profile", ["silent_eco"])[0]
+            w_sec = float(params.get("work_sec", [45.0])[0])
+            pacer_data = ThermalAdaptiveRenderPacer.calculate_inter_scene_pause(elapsed_work_seconds=w_sec, profile=prof)
+            return self.send_json({"ok": True, "pacer": pacer_data})
+        elif self.path.startswith("/api/media/proxy/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            tier_val = params.get("tier", ["ultra_light_540p"])[0]
+            proxy_data = SmartProxyResolutionScaler.calculate_proxy_scaling(
+                source_width=1920,
+                source_height=1080,
+                tier=tier_val
+            )
+            return self.send_json({"ok": True, "proxy_config": proxy_data})
         else:
             self.send_response(404)
             self.end_headers()
@@ -7360,6 +7594,9 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             plan.scenes = new_scenes
             self.repo.save(plan)
             return self.send_json({"ok": True, "pruner": pruner_res})
+        elif self.path == "/api/db/wal_checkpoint":
+            cp_data = SQLiteWALCheckpointGovernor.execute_passive_checkpoint()
+            return self.send_json({"ok": True, "checkpoint": cp_data})
         else:
             self.send_response(404)
             self.end_headers()

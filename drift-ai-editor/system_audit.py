@@ -300,6 +300,10 @@ def audit_system():
         "core.cpu_thread_affinity_governor",
         "pipeline.pre_render_deadweight_pruner",
         "storage.ssd_write_fatigue_mitigator",
+        "audio.lossless_audio_pass_through_engine",
+        "core.thermal_adaptive_render_pacer",
+        "media.smart_proxy_resolution_scaler",
+        "storage.sqlite_wal_checkpoint_governor",
     ]
 
     for mod_name in modules_to_test:
