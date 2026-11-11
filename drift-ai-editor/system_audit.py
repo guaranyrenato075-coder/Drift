@@ -308,6 +308,10 @@ def audit_system():
         "core.ram_working_set_trimmer",
         "editing.variable_framerate_jitter_smoother",
         "storage.compact_json_delta_patcher",
+        "editing.smart_keyframe_interval_aligner",
+        "pipeline.gpu_vram_leak_sentinel",
+        "core.nvme_trim_io_coalescer",
+        "media.smart_color_space_fast_matrix",
     ]
 
     for mod_name in modules_to_test:

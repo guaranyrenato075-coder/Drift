@@ -126,6 +126,10 @@ from pipeline.zero_copy_frame_pipe_allocator import ZeroCopyFramePipeAllocator
 from core.ram_working_set_trimmer import RamWorkingSetTrimmer
 from editing.variable_framerate_jitter_smoother import VariableFramerateJitterSmoother
 from storage.compact_json_delta_patcher import CompactJsonDeltaPatcher
+from editing.smart_keyframe_interval_aligner import SmartKeyframeIntervalAligner
+from pipeline.gpu_vram_leak_sentinel import GPUVRAMLeakSentinel
+from core.nvme_trim_io_coalescer import NVMeTrimIOCoalescer
+from media.smart_color_space_fast_matrix import SmartColorSpaceFastMatrix
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -412,6 +416,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="executarLimpezaWorkingSet()">🧹 Desalocar RAM (EmptyWorkingSet)</button>
       <button class="btn btn-secondary" style="border-color:#f59e0b; color:#fef3c7; font-weight:600;" onclick="abrirVFROptimizerModal()">⏱️ Estabilizador VFR Anti-Jitter</button>
       <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirDeltaPatcherModal()">🧩 Gravador Delta JSON (Poupa 95% SSD)</button>
+      <button class="btn btn-secondary" style="border-color:#f43f5e; color:#ffe4e6; font-weight:600;" onclick="abrirKeyframeAlignerModal()">✂️ Alinhador de Keyframe I-Frame</button>
+      <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirVRAMSentinelModal()">🛡️ Sentinela Anti-Vazamento VRAM</button>
+      <button class="btn btn-secondary" style="border-color:#14b8a6; color:#ccfbf1; font-weight:600;" onclick="abrirNVMeCoalescerModal()">⚡ Coalescedor 4KB NVMe SSD</button>
+      <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirColorMatrixModal()">🎨 Matriz Cromática Rápida SIMD</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -4442,6 +4450,150 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular delta: ${e.message}</div>`;
       }
     }
+
+    // Keyframe Interval Aligner
+    function abrirKeyframeAlignerModal() {
+      document.getElementById('keyframe-aligner-modal').style.display = 'flex';
+      calcularKeyframeAligner();
+    }
+    function fecharKeyframeAlignerModal() {
+      document.getElementById('keyframe-aligner-modal').style.display = 'none';
+    }
+    async function calcularKeyframeAligner() {
+      const cutSec = document.getElementById('kf-cut-sec') ? document.getElementById('kf-cut-sec').value : '4.05';
+      const contentEl = document.getElementById('kf-align-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Detectando GOP e alinhando corte a I-Frames...</div>';
+      try {
+        const res = await fetch(`/api/editing/keyframe/align?cut_sec=${cutSec}&fps=30`);
+        const data = await res.json();
+        if (data.ok && data.alignment) {
+          const a = data.alignment;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#f43f5e;">Estratégia: ${a.ffmpeg_cut_strategy}</span>
+                <span style="background:rgba(244,63,94,0.2); color:#fda4af; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">-${a.cpu_energy_saved_pct}% CPU</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Corte Solicitado: <b>${a.requested_cut_sec}s</b> -> Alinhado ao I-Frame: <b>${a.aligned_cut_sec}s</b> (Offset: ${a.drift_offset_ms}ms)
+              </div>
+              <div style="font-size:0.8rem; color:#86efac;">${a.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular keyframe: ${e.message}</div>`;
+      }
+    }
+
+    // GPU VRAM Leak Sentinel
+    function abrirVRAMSentinelModal() {
+      document.getElementById('vram-sentinel-modal').style.display = 'flex';
+      calcularVRAMSentinel();
+    }
+    function fecharVRAMSentinelModal() {
+      document.getElementById('vram-sentinel-modal').style.display = 'none';
+    }
+    async function calcularVRAMSentinel() {
+      const contentEl = document.getElementById('vram-sentinel-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Inspecionando alocação de buffers gráficos D3D11/NVENC...</div>';
+      try {
+        const res = await fetch(`/api/hardware/vram/inspect?vram_mb=1800`);
+        const data = await res.json();
+        if (data.ok && data.vram_status) {
+          const v = data.vram_status;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#8b5cf6;">Aceleração: ${v.hardware_backend.toUpperCase()}</span>
+                <span style="background:rgba(139,92,246,0.2); color:#c4b5fd; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">${v.reset_strategy}</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                VRAM Ocupada Estimada: <b>${v.estimated_retained_vram_mb} MB</b> | Recuperável pós-render: <b>${v.reclaimable_vram_mb} MB</b>
+              </div>
+              <div style="font-size:0.75rem; font-family:monospace; color:#ddd6fe; background:#0f172a; padding:6px; border-radius:4px;">
+                Flags de Decodificação Hardware: ${v.ffmpeg_hw_flags}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#d8b4fe;">${v.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao inspecionar VRAM: ${e.message}</div>`;
+      }
+    }
+
+    // NVMe 4KB Trim & I/O Coalescer
+    function abrirNVMeCoalescerModal() {
+      document.getElementById('nvme-coalescer-modal').style.display = 'flex';
+      calcularNVMeCoalescer();
+    }
+    function fecharNVMeCoalescerModal() {
+      document.getElementById('nvme-coalescer-modal').style.display = 'none';
+    }
+    async function calcularNVMeCoalescer() {
+      const bytesIn = document.getElementById('nvme-input-bytes') ? document.getElementById('nvme-input-bytes').value : '5400';
+      const contentEl = document.getElementById('nvme-coalescer-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando alinhamento de setores 4KB NVMe...</div>';
+      try {
+        const res = await fetch(`/api/hardware/nvme/coalesce?bytes=${bytesIn}`);
+        const data = await res.json();
+        if (data.ok && data.coalesce) {
+          const c = data.coalesce;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#14b8a6;">Setores de 4KB: ${c.sectors_4k_count} blocos</span>
+                <span style="background:rgba(20,184,166,0.2); color:#5eead4; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">-${c.nand_flash_wear_reduction_pct}% Desgaste NAND</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Tamanho Original: <b>${c.unaligned_input_bytes} Bytes</b> -> Alinhado (4K): <b>${c.aligned_output_bytes} Bytes</b> (+${c.padding_bytes}B padding)
+              </div>
+              <div style="font-size:0.8rem; color:#99f6e4;">${c.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular alinhamento: ${e.message}</div>`;
+      }
+    }
+
+    // Color Space Fast Matrix
+    function abrirColorMatrixModal() {
+      document.getElementById('color-matrix-modal').style.display = 'flex';
+      calcularColorMatrix();
+    }
+    function fecharColorMatrixModal() {
+      document.getElementById('color-matrix-modal').style.display = 'none';
+    }
+    async function calcularColorMatrix() {
+      const srcSpace = document.getElementById('color-src') ? document.getElementById('color-src').value : 'bt601';
+      const tgtSpace = document.getElementById('color-tgt') ? document.getElementById('color-tgt').value : 'bt709';
+      const contentEl = document.getElementById('color-matrix-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando matriz de conversão vetorial SIMD...</div>';
+      try {
+        const res = await fetch(`/api/media/color_matrix/calculate?src=${srcSpace}&tgt=${tgtSpace}`);
+        const data = await res.json();
+        if (data.ok && data.matrix) {
+          const m = data.matrix;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#eab308;">${m.source_name} -> ${m.target_name}</span>
+                <span style="background:rgba(234,179,8,0.2); color:#fef08a; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">-${m.cpu_overhead_vs_3d_lut_reduction_pct}% Carga vs 3D LUT</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">${m.algorithm}</div>
+              <div style="font-size:0.75rem; font-family:monospace; color:#fde047; background:#0f172a; padding:6px; border-radius:4px;">
+                FFmpeg SIMD Filter: -vf ${m.fast_ffmpeg_filter}
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#fef9c3;">${m.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular matriz: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -5692,6 +5844,97 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Alinhamento de Keyframes -->
+  <div id="keyframe-aligner-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">✂️ Alinhador Cirúrgico de Keyframes (GOP I-Frame)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharKeyframeAlignerModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Ponto de Corte Desejado (segundos):</label>
+          <input type="number" id="kf-cut-sec" value="4.05" step="0.05" style="width:90px; padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularKeyframeAligner()">
+          <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="calcularKeyframeAligner()">Verificar Encaixe</button>
+        </div>
+        <div id="kf-align-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharKeyframeAlignerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Sentinela VRAM -->
+  <div id="vram-sentinel-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🛡️ Sentinela Anti-Vazamento de VRAM da GPU</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharVRAMSentinelModal()">&times;</button>
+      </div>
+      <div id="vram-sentinel-content" style="padding:20px; overflow-y:auto; flex:1;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharVRAMSentinelModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Coalescedor 4KB NVMe -->
+  <div id="nvme-coalescer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">⚡ Coalescedor e Alinhador a 4KB NVMe SSD</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharNVMeCoalescerModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Tamanho de Buffer Desalinhado (bytes):</label>
+          <input type="number" id="nvme-input-bytes" value="5400" style="width:110px; padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularNVMeCoalescer()">
+          <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="calcularNVMeCoalescer()">Simular Alinhamento</button>
+        </div>
+        <div id="nvme-coalescer-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharNVMeCoalescerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Matriz Cromática Rápida -->
+  <div id="color-matrix-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🎨 Conversor Cromático Rápido SIMD (Zero 3D LUT)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharColorMatrixModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Origem:</label>
+            <select id="color-src" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularColorMatrix()">
+              <option value="bt601" selected>Rec.601 (SDTV)</option>
+              <option value="srgb">sRGB (Web/Monitores)</option>
+              <option value="bt2020">Rec.2020 (HDR Amplo)</option>
+            </select>
+          </div>
+          <span style="color:var(--text-muted);">➜</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Destino:</label>
+            <select id="color-tgt" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularColorMatrix()">
+              <option value="bt709" selected>Rec.709 (HDTV YouTube)</option>
+              <option value="srgb">sRGB</option>
+              <option value="bt2020">Rec.2020</option>
+            </select>
+          </div>
+        </div>
+        <div id="color-matrix-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharColorMatrixModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -6650,6 +6893,33 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             plan_dict = plan.to_dict()
             delta_data = CompactJsonDeltaPatcher.compute_project_delta(plan_dict, plan_dict)
             return self.send_json({"ok": True, "delta": delta_data})
+        elif self.path.startswith("/api/editing/keyframe/align"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            cut_val = float(params.get("cut_sec", [4.05])[0])
+            fps_val = float(params.get("fps", [30.0])[0])
+            align_data = SmartKeyframeIntervalAligner.align_cut_to_nearest_keyframe(requested_cut_sec=cut_val, fps=fps_val)
+            return self.send_json({"ok": True, "alignment": align_data})
+        elif self.path.startswith("/api/hardware/vram/inspect"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            vram_val = float(params.get("vram_mb", [1800.0])[0])
+            backend = params.get("backend", ["d3d11va"])[0]
+            vram_data = GPUVRAMLeakSentinel.inspect_vram_hygiene(estimated_allocated_vram_mb=vram_val, hardware_backend=backend)
+            return self.send_json({"ok": True, "vram_status": vram_data})
+        elif self.path.startswith("/api/hardware/nvme/coalesce"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            bytes_val = int(params.get("bytes", [5400])[0])
+            coalesce_data = NVMeTrimIOCoalescer.calculate_coalesced_buffer_size(unaligned_bytes=bytes_val)
+            return self.send_json({"ok": True, "coalesce": coalesce_data})
+        elif self.path.startswith("/api/media/color_matrix/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            src_val = params.get("src", ["bt601"])[0]
+            tgt_val = params.get("tgt", ["bt709"])[0]
+            matrix_data = SmartColorSpaceFastMatrix.build_fast_matrix_filter(source_space=src_val, target_space=tgt_val)
+            return self.send_json({"ok": True, "matrix": matrix_data})
         else:
             self.send_response(404)
             self.end_headers()
