@@ -296,6 +296,10 @@ def audit_system():
         "audio.dynamic_audio_ducking_sidechain_engine",
         "pipeline.youtube_thumbnail_ab_grid_renderer",
         "core.desktop_launcher_daemon_packager",
+        "editing.smart_selective_rerender_cache",
+        "core.cpu_thread_affinity_governor",
+        "pipeline.pre_render_deadweight_pruner",
+        "storage.ssd_write_fatigue_mitigator",
     ]
 
     for mod_name in modules_to_test:

@@ -114,6 +114,10 @@ from editing.nle_timeline_xml_edl_exporter import NLETimelineXMLEdlExporter
 from audio.dynamic_audio_ducking_sidechain_engine import DynamicAudioDuckingSidechainEngine
 from pipeline.youtube_thumbnail_ab_grid_renderer import YouTubeThumbnailABGridRenderer
 from core.desktop_launcher_daemon_packager import DesktopLauncherDaemonPackager
+from editing.smart_selective_rerender_cache import SmartSelectiveRerenderCache
+from core.cpu_thread_affinity_governor import CPUThreadAffinityGovernor
+from pipeline.pre_render_deadweight_pruner import PreRenderDeadweightPruner
+from storage.ssd_write_fatigue_mitigator import SSDWriteFatigueMitigator
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -388,6 +392,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#14b8a6; color:#ccfbf1; font-weight:600;" onclick="abrirDuckingModal()">🎚️ Sidechain Audio Ducking</button>
       <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirThumbnailsABModal()">🖼️ Grade A/B de Thumbnails</button>
       <button class="btn btn-secondary" style="border-color:#22c55e; color:#dcfce7; font-weight:600;" onclick="gerarLauncherDesktop()">⚡ Gerar Launcher Desktop 1-Clique</button>
+      <button class="btn btn-secondary" style="border-color:#38bdf8; color:#e0f2fe; font-weight:600;" onclick="abrirAffinityModal()">🛡️ Afinidade CPU & PC Frio</button>
+      <button class="btn btn-secondary" style="border-color:#fbbf24; color:#fef3c7; font-weight:600;" onclick="abrirSelectiveRerenderModal()">⚡ Render Seletivo (Zero GPU Waste)</button>
+      <button class="btn btn-secondary" style="border-color:#f472b6; color:#fce7f3; font-weight:600;" onclick="abrirPrunerModal()">🧹 Poda de Cenas Inertes</button>
+      <button class="btn btn-secondary" style="border-color:#4ade80; color:#dcfce7; font-weight:600;" onclick="abrirSSDFatigueModal()">💾 Preservação de SSD (Zero Wear)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -3998,6 +4006,176 @@ O Segredo do Foco Profundo</textarea>
         alert('Erro ao requisitar launcher: ' + e.message);
       }
     }
+
+    // CPU Thread Affinity & Thermal Governor
+    function abrirAffinityModal() {
+      document.getElementById('affinity-modal').style.display = 'flex';
+      calcularAffinity();
+    }
+    function fecharAffinityModal() {
+      document.getElementById('affinity-modal').style.display = 'none';
+    }
+    async function calcularAffinity() {
+      const profile = document.getElementById('affinity-profile') ? document.getElementById('affinity-profile').value : 'balanced';
+      const contentEl = document.getElementById('affinity-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Detectando topologia de núcleos e arrefecimento térmico...</div>';
+      try {
+        const res = await fetch(`/api/hardware/affinity/calculate?profile=${profile}`);
+        const data = await res.json();
+        if (data.ok && data.affinity) {
+          const a = data.affinity;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#38bdf8;">Núcleos do Sistema: ${a.total_cpu_cores}</span>
+                <span style="background:rgba(56,189,248,0.2); color:#bae6fd; font-size:0.75rem; padding:2px 6px; border-radius:4px; font-weight:700;">${a.cooling_profile.toUpperCase()}</span>
+              </div>
+              <div style="display:flex; gap:16px; margin:8px 0; font-size:0.85rem;">
+                <span style="color:#4ade80;">Render: ${a.allocated_render_threads} núcleos</span>
+                <span style="color:#fde047;">Windows/UI Livre: ${a.reserved_os_cores} núcleos</span>
+                <span style="color:#c084fc;">Máscara: ${a.hex_affinity_mask}</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${a.summary}</div>
+              <div style="margin-top:10px; font-size:0.75rem; font-family:monospace; color:#93c5fd; background:#0f172a; padding:6px; border-radius:4px;">
+                FFmpeg Flags: ${a.ffmpeg_thread_args}
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao calcular: ${e.message}</div>`;
+      }
+    }
+
+    // Selective Rerender Cache
+    function abrirSelectiveRerenderModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      document.getElementById('selective-rerender-modal').style.display = 'flex';
+      analisarRerenderSeletivo();
+    }
+    function fecharSelectiveRerenderModal() {
+      document.getElementById('selective-rerender-modal').style.display = 'none';
+    }
+    async function analisarRerenderSeletivo() {
+      if (!currentPlan) return;
+      const contentEl = document.getElementById('selective-rerender-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Comparando fingerprints criptográficos SHA-256 da timeline...</div>';
+      try {
+        const res = await fetch(`/api/selective_rerender/analyze?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.rerender_analysis) {
+          const r = data.rerender_analysis;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#fbbf24;">Estratégia: ${r.stitch_strategy}</span>
+                <span style="background:rgba(251,191,36,0.2); color:#fde047; font-size:0.85rem; padding:3px 8px; border-radius:4px; font-weight:700;">-${r.gpu_energy_saved_pct}% Uso GPU</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Cenas Intactas em Cache: <b>${r.cached_scenes_count}</b> (${r.cached_duration_sec}s) | Exigem Render: <b>${r.rerender_scenes_count}</b> (${r.rerender_duration_sec}s)
+              </div>
+              <div style="font-size:0.8rem; color:#86efac; background:#064e3b; padding:8px; border-radius:6px;">
+                💡 ${r.summary}
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao analisar: ${e.message}</div>`;
+      }
+    }
+
+    // Deadweight Pruner
+    function abrirPrunerModal() {
+      if (!currentPlan) return alert('Analise ou carregue um roteiro primeiro!');
+      document.getElementById('pruner-modal').style.display = 'flex';
+      analisarPodaInertes();
+    }
+    function fecharPrunerModal() {
+      document.getElementById('pruner-modal').style.display = 'none';
+    }
+    async function analisarPodaInertes() {
+      if (!currentPlan) return;
+      const contentEl = document.getElementById('pruner-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Auditando cortes inertes e mídias vazias...</div>';
+      try {
+        const res = await fetch(`/api/pruner/analyze?project_id=${currentPlan.project_id}`);
+        const data = await res.json();
+        if (data.ok && data.pruner) {
+          const p = data.pruner;
+          let detailsHtml = '';
+          if (p.pruned_details && p.pruned_details.length > 0) {
+            detailsHtml = '<div style="margin-top:8px; font-size:0.75rem; color:#fca5a5;">Itens podados: ' + p.pruned_details.map(d => `Cena ${d.original_index} (${d.reason})`).join(', ') + '</div>';
+          }
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="font-weight:700; color:#f472b6;">Cenas Analisadas: ${p.initial_scenes_count} -> ${p.final_scenes_count}</div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:6px 0;">
+                Cenas Inertes Eliminadas: <b>${p.deadweight_scenes_removed}</b> | Tempo de Render Desperdiçado Poupado: <b>${p.saved_render_time_sec}s</b>
+              </div>
+              ${detailsHtml}
+              <div style="margin-top:8px; font-size:0.8rem; color:#d1d5db;">${p.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao auditar: ${e.message}</div>`;
+      }
+    }
+    async function executarPodaInertes() {
+      if (!currentPlan) return;
+      try {
+        const res = await fetch('/api/pruner/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: currentPlan.project_id })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Poda concluída! Cenas redundantes foram removidas e a timeline foi otimizada para o hardware.');
+          carregarRoteiro(currentPlan.project_id);
+          fecharPrunerModal();
+        }
+      } catch (e) {
+        alert('Erro ao aplicar poda: ' + e.message);
+      }
+    }
+
+    // SSD Write Fatigue Mitigator
+    function abrirSSDFatigueModal() {
+      document.getElementById('ssd-fatigue-modal').style.display = 'flex';
+      calcularEconomiaSSD();
+    }
+    function fecharSSDFatigueModal() {
+      document.getElementById('ssd-fatigue-modal').style.display = 'none';
+    }
+    async function calcularEconomiaSSD() {
+      const contentEl = document.getElementById('ssd-fatigue-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando ciclo de gravação NAND Flash e alocação volátil...</div>';
+      try {
+        const res = await fetch(`/api/ssd/fatigue/estimate?mb=1200`);
+        const data = await res.json();
+        if (data.ok && data.ssd_report) {
+          const s = data.ssd_report;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#4ade80;">Modo: ${s.scratchpad_mode}</span>
+                <span style="background:rgba(74,222,128,0.2); color:#86efac; font-size:0.85rem; padding:3px 8px; border-radius:4px; font-weight:700;">-${s.ssd_life_extension_pct}% Desgaste</span>
+              </div>
+              <div style="display:flex; gap:16px; margin:10px 0; font-size:0.85rem;">
+                <span style="color:#f87171;">Sem Mitigação: ${s.estimated_ssd_wear_without_mitigation_mb} MB</span>
+                <span style="color:#4ade80;">Com Buffer RAM: ${s.ssd_wear_with_mitigation_mb} MB</span>
+                <span style="color:#fde047;">Poupado: ${s.saved_ssd_writes_mb} MB</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${s.recommendation}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro ao estimar: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -5056,6 +5234,73 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Afinidade de CPU -->
+  <div id="affinity-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:640px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🛡️ Governador de Afinidade de CPU & Sistema Frio</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharAffinityModal()">&times;</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Perfil Térmico / Arrefecimento:</label>
+          <select id="affinity-profile" style="padding:6px 10px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularAffinity()">
+            <option value="balanced" selected>Equilibrado (Reserva 2 núcleos pro Windows)</option>
+            <option value="silent_cool">Silencioso / Baixa Temperatura (Usa 50% dos núcleos)</option>
+            <option value="workstation_max">Workstation Máxima (Reserva apenas 1 núcleo)</option>
+          </select>
+        </div>
+        <div id="affinity-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAffinityModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Render Seletivo -->
+  <div id="selective-rerender-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:680px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">⚡ Cache Cirúrgico & Render Seletivo (Zero GPU Waste)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharSelectiveRerenderModal()">&times;</button>
+      </div>
+      <div id="selective-rerender-content" style="padding:20px; overflow-y:auto; flex:1;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharSelectiveRerenderModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Poda de Cenas Inertes -->
+  <div id="pruner-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">🧹 Higienizador Pré-Render de Cenas Inertes</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharPrunerModal()">&times;</button>
+      </div>
+      <div id="pruner-content" style="padding:20px; overflow-y:auto; flex:1;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharPrunerModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="executarPodaInertes()">Aplicar Poda na Timeline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Preservação de SSD -->
+  <div id="ssd-fatigue-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; width:650px; max-width:92%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">💾 Mitigador de Fadiga & Desgaste de SSD (NAND TBW)</h3>
+        <button style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;" onclick="fecharSSDFatigueModal()">&times;</button>
+      </div>
+      <div id="ssd-fatigue-content" style="padding:20px; overflow-y:auto; flex:1;"></div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharSSDFatigueModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -5900,6 +6145,52 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 keywords=getattr(plan, "keywords", ["Cinema", "Drift", "IA"])
             )
             return self.send_json({"ok": True, "ab_grid": grid_data})
+        elif self.path.startswith("/api/hardware/affinity/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            prof = params.get("profile", ["balanced"])[0]
+            aff_data = CPUThreadAffinityGovernor.calculate_balanced_thread_allocation(cooling_profile=prof)
+            return self.send_json({"ok": True, "affinity": aff_data})
+        elif self.path.startswith("/api/selective_rerender/analyze"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            scenes_dict = [
+                {
+                    "duration": getattr(sc, "duration", 4.0),
+                    "narration_text": getattr(sc, "narration_text", ""),
+                    "concept": getattr(sc, "concept", "")
+                }
+                for sc in plan.scenes
+            ]
+            rerender_res = SmartSelectiveRerenderCache.analyze_rerender_differential(scenes_dict, scenes_dict)
+            return self.send_json({"ok": True, "rerender_analysis": rerender_res})
+        elif self.path.startswith("/api/pruner/analyze"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            proj_id = params.get("project_id", [""])[0]
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            scenes_dict = [
+                {
+                    "duration": getattr(sc, "duration", 4.0),
+                    "narration_text": getattr(sc, "narration_text", ""),
+                    "concept": getattr(sc, "concept", "")
+                }
+                for sc in plan.scenes
+            ]
+            pruner_res = PreRenderDeadweightPruner.prune_timeline(scenes_dict)
+            return self.send_json({"ok": True, "pruner": pruner_res})
+        elif self.path.startswith("/api/ssd/fatigue/estimate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            mb_val = float(params.get("mb", [1200.0])[0])
+            ssd_data = SSDWriteFatigueMitigator.calculate_write_savings(int(mb_val * 1024 * 1024), use_ram_scratchpad=True)
+            return self.send_json({"ok": True, "ssd_report": ssd_data})
         else:
             self.send_response(404)
             self.end_headers()
@@ -7025,6 +7316,32 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             cur_dir = os.path.dirname(os.path.abspath(__file__))
             launch_res = DesktopLauncherDaemonPackager.deploy_desktop_launchers(cur_dir, port=port_val)
             return self.send_json({"ok": True, "launcher": launch_res})
+        elif self.path == "/api/pruner/apply":
+            proj_id = data.get("project_id")
+            plan = self.repo.get(proj_id) if proj_id else None
+            if not plan:
+                return self.send_json({"ok": False, "error": "Projeto não encontrado"}, 404)
+            scenes_dict = [
+                {
+                    "duration": getattr(sc, "duration", 4.0),
+                    "narration_text": getattr(sc, "narration_text", ""),
+                    "concept": getattr(sc, "concept", "")
+                }
+                for sc in plan.scenes
+            ]
+            pruner_res = PreRenderDeadweightPruner.prune_timeline(scenes_dict)
+            from models.scene_plan import Scene
+            new_scenes = []
+            for item in pruner_res["cleaned_scenes"]:
+                new_scenes.append(Scene(
+                    order=item["order"],
+                    duration=item["duration"],
+                    narration_text=item.get("narration_text", ""),
+                    concept=item.get("concept", "")
+                ))
+            plan.scenes = new_scenes
+            self.repo.save(plan)
+            return self.send_json({"ok": True, "pruner": pruner_res})
         else:
             self.send_response(404)
             self.end_headers()
