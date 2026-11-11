@@ -154,6 +154,10 @@ from core.ram_dirty_page_writeback_flusher import RAMDirtyPageWritebackFlusher
 from editing.avx_downclocking_frequency_guard import AVXDownclockingFrequencyGuard
 from media.raw_stream_circular_io_buffer import RawStreamCircularIOBuffer
 from pipeline.gpu_power_state_transition_shield import GPUPowerStateTransitionShield
+from core.system_interrupt_dpc_latency_mitigator import SystemInterruptDPCLatencyMitigator
+from editing.gamma_space_integer_fast_lut import GammaSpaceIntegerFastLUT
+from media.chunked_direct_io_stream_writer import ChunkedDirectIOStreamWriter
+from pipeline.gpu_encoder_session_rebalancer import GPUEncoderSessionRebalancer
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -468,6 +472,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirAVXGuardModal()">🚀 Guarda Turbo SIMD (Anti-Downclocking CPU)</button>
       <button class="btn btn-secondary" style="border-color:#14b8a6; color:#ccfbf1; font-weight:600;" onclick="abrirRawBufferModal()">🧊 Buffer Circular RAM (Zero .TMP no SSD)</button>
       <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirDStateShieldModal()">🛡️ Escudo Histerese D-State (Anti-Fadiga GPU)</button>
+      <button class="btn btn-secondary" style="border-color:#6366f1; color:#e0e7ff; font-weight:600;" onclick="abrirDPCMitigatorModal()">⏱️ Mitigador Latência DPC (Zero Audio Dropouts)</button>
+      <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirGammaLUTModal()">🎨 Gama Linear 2.2 LUT (95% FPU Relief)</button>
+      <button class="btn btn-secondary" style="border-color:#0284c7; color:#e0f2fe; font-weight:600;" onclick="abrirDirectIOModal()">💾 Direct I/O Export (Zero RAM Thrashing)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirASICBalancerModal()">🛡️ Balanceador ASIC NVENC/QSV (Anti-TDR)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -5532,6 +5540,155 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro no D-State Shield: ${e.message}</div>`;
       }
     }
+
+    // --- Funções do Pacote Hardware-Armor Eternal ---
+    async function abrirDPCMitigatorModal() {
+      document.getElementById('dpc-mitigator-modal').style.display = 'flex';
+      avaliarDPCMitigator();
+    }
+    function fecharDPCMitigatorModal() {
+      document.getElementById('dpc-mitigator-modal').style.display = 'none';
+    }
+    async function avaliarDPCMitigator() {
+      const lat = document.getElementById('dpc-latency-us')?.value || '350';
+      const contentEl = document.getElementById('dpc-mitigator-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Monitorando tolerância de latência DPC e temporização...</div>';
+      try {
+        const res = await fetch(`/api/core/dpc_latency/evaluate?latency_us=${lat}`);
+        const data = await res.json();
+        if (data.ok && data.dpc) {
+          const d = data.dpc;
+          const badgeColor = d.dpc_status === 'CRITICAL_SPIKE' ? '#ef4444' : (d.dpc_status === 'ELEVATED' ? '#f59e0b' : '#6366f1');
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:${badgeColor};">${d.dpc_status} (${d.measured_latency_us} µs)</span>
+                <span style="background:rgba(99,102,241,0.2); color:#c7d2fe; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  ${d.dropout_prevention_pct}% Sem Dropouts
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Avaliação: <strong>${d.safety_rating}</strong> | Ação: ${d.mitigation_action}
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${d.system_responsiveness}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e0f2fe;">${d.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no DPC Mitigator: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirGammaLUTModal() {
+      document.getElementById('gamma-lut-modal').style.display = 'flex';
+      calcularGammaLUT();
+    }
+    function fecharGammaLUTModal() {
+      document.getElementById('gamma-lut-modal').style.display = 'none';
+    }
+    async function calcularGammaLUT() {
+      const byteVal = document.getElementById('gamma-pixel-val')?.value || '128';
+      const contentEl = document.getElementById('gamma-lut-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Consultando tabela inteira de espaço de gama...</div>';
+      try {
+        const res = await fetch(`/api/editing/gamma_lut/calculate?pixel=${byteVal}`);
+        const data = await res.json();
+        if (data.ok && data.gamma) {
+          const g = data.gamma;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#eab308;">sRGB: ${g.input_pixel_8bit} -> Linear: ${g.linear_value_16bit} (16-bit)</span>
+                <span style="background:rgba(234,179,8,0.2); color:#fef08a; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${g.fpu_cycle_reduction_pct}% Ciclos de FPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Curva: Gama ${g.gamma_curve} (${g.table_levels} degraus) | Operações pow() eliminadas por quadro: <strong>${g.fpu_pow_operations_eliminated_per_frame.toLocaleString()}</strong>
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#fef9c3;">${g.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Gamma LUT: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirDirectIOModal() {
+      document.getElementById('direct-io-modal').style.display = 'flex';
+      calcularDirectIO();
+    }
+    function fecharDirectIOModal() {
+      document.getElementById('direct-io-modal').style.display = 'none';
+    }
+    async function calcularDirectIO() {
+      const sizeMb = document.getElementById('direct-io-mb')?.value || '2048';
+      const contentEl = document.getElementById('direct-io-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando preservação de memória RAM contra thrashing...</div>';
+      try {
+        const res = await fetch(`/api/media/direct_io/calculate?size_mb=${sizeMb}`);
+        const data = await res.json();
+        if (data.ok && data.direct_io) {
+          const d = data.direct_io;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#0284c7;">Export de ${d.export_file_size_mb} MB (Blocos ${d.direct_io_chunk_size_kb} KB)</span>
+                <span style="background:rgba(2,132,199,0.2); color:#bae6fd; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${d.swap_thrashing_prevention_pct}% Risco de Swapping
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Cache do Windows Poupado: <strong>${d.system_ram_cache_saved_mb} MB</strong> | Blocos Diretos: ${d.total_aligned_chunks.toLocaleString()}
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${d.ram_stability}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#e0f2fe;">${d.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Direct I/O: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirASICBalancerModal() {
+      document.getElementById('asic-balancer-modal').style.display = 'flex';
+      avaliarASICBalancer();
+    }
+    function fecharASICBalancerModal() {
+      document.getElementById('asic-balancer-modal').style.display = 'none';
+    }
+    async function avaliarASICBalancer() {
+      const sess = document.getElementById('asic-sessions')?.value || '2';
+      const backend = document.getElementById('asic-backend')?.value || 'nvenc';
+      const contentEl = document.getElementById('asic-balancer-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Verificando limites do chip dedicado ASIC da GPU...</div>';
+      try {
+        const res = await fetch(`/api/pipeline/asic_balancer/evaluate?sessions=${sess}&backend=${backend}`);
+        const data = await res.json();
+        if (data.ok && data.asic) {
+          const a = data.asic;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:${a.can_admit_hardware ? '#10b981' : '#f59e0b'};">${a.hardware_backend} (${a.active_sessions}/${a.max_allowed_sessions} Sessões)</span>
+                <span style="background:rgba(16,185,129,0.2); color:#a7f3d0; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  ${a.asic_stability_pct}% Estabilidade
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Modo: <strong>${a.allocation_mode}</strong> | Risco TDR/Driver Crash: <strong>${a.tdr_driver_crash_risk}</strong>
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#d1fae5;">${a.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no ASIC Balancer: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -7465,6 +7622,122 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal Mitigador Latência DPC -->
+  <div id="dpc-mitigator-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>⏱️</span> Mitigador Latência DPC (Zero Audio Dropouts)
+        </h3>
+        <button onclick="fecharDPCMitigatorModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Latência Medida:</label>
+          <select id="dpc-latency-us" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarDPCMitigator()">
+            <option value="250">250 µs (Ideal / Estúdio em Tempo Real)</option>
+            <option value="850">850 µs (Carga Típica do Windows)</option>
+            <option value="1500" selected>1500 µs (Zona de Amortecimento)</option>
+            <option value="2800">2800 µs (Alerta de Dropout / Prioridade MMCSS)</option>
+          </select>
+        </div>
+        <div id="dpc-mitigator-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDPCMitigatorModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Gama Linear 2.2 LUT -->
+  <div id="gamma-lut-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🎨</span> Gama Linear 2.2 LUT (95% FPU Relief)
+        </h3>
+        <button onclick="fecharGammaLUTModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Nível de Pixel sRGB (0-255):</label>
+          <select id="gamma-pixel-val" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularGammaLUT()">
+            <option value="64">64 (Sombras 25%)</option>
+            <option value="128" selected>128 (Cinza Médio 50%)</option>
+            <option value="192">192 (Realces 75%)</option>
+            <option value="255">255 (Branco Puro 100%)</option>
+          </select>
+        </div>
+        <div id="gamma-lut-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharGammaLUTModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Direct I/O Export (Zero RAM Thrashing) -->
+  <div id="direct-io-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>💾</span> Direct I/O Export (Zero RAM Thrashing)
+        </h3>
+        <button onclick="fecharDirectIOModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Tamanho do Vídeo Exportado:</label>
+          <select id="direct-io-mb" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularDirectIO()">
+            <option value="1024">1 GB (Export Médio)</option>
+            <option value="4096" selected>4 GB (Vídeo 4K 60fps)</option>
+            <option value="16384">16 GB (Longform ProRes Master)</option>
+          </select>
+        </div>
+        <div id="direct-io-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharDirectIOModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Balanceador ASIC NVENC/QSV (Anti-TDR) -->
+  <div id="asic-balancer-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:580px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🛡️</span> Balanceador de Sessões ASIC (Anti-TDR GPU)
+        </h3>
+        <button onclick="fecharASICBalancerModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">ASIC:</label>
+            <select id="asic-backend" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarASICBalancer()">
+              <option value="nvenc" selected>NVIDIA NVENC</option>
+              <option value="qsv">Intel QuickSync</option>
+              <option value="amf">AMD VCN</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Sessões Ativas:</label>
+            <select id="asic-sessions" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarASICBalancer()">
+              <option value="1">1 Sessão (Seguro)</option>
+              <option value="2" selected>2 Sessões (Export + Preview)</option>
+              <option value="4">4 Sessões (Limite Físico do Silício)</option>
+            </select>
+          </div>
+        </div>
+        <div id="asic-balancer-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharASICBalancerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -8611,6 +8884,35 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             delta_val = float(params.get("delta_ms", [250.0])[0])
             shield_data = GPUPowerStateTransitionShield.evaluate_state_transition(time_since_last_activity_ms=delta_val)
             return self.send_json({"ok": True, "shield": shield_data})
+        elif self.path.startswith("/api/core/dpc_latency/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            lat_val = float(params.get("latency_us", [350.0])[0])
+            dpc_data = SystemInterruptDPCLatencyMitigator.evaluate_dpc_safety(measured_latency_us=lat_val)
+            return self.send_json({"ok": True, "dpc": dpc_data})
+        elif self.path.startswith("/api/editing/gamma_lut/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            pix_val = int(params.get("pixel", [128])[0])
+            lin_val = GammaSpaceIntegerFastLUT.srgb_to_linear(pix_val)
+            gamma_data = GammaSpaceIntegerFastLUT.benchmark_lut_performance()
+            gamma_data["input_pixel_8bit"] = pix_val
+            gamma_data["linear_value_16bit"] = lin_val
+            return self.send_json({"ok": True, "gamma": gamma_data})
+        elif self.path.startswith("/api/media/direct_io/calculate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            size_val = float(params.get("size_mb", [2048.0])[0])
+            writer = ChunkedDirectIOStreamWriter()
+            direct_data = writer.calculate_ram_cache_preservation(export_total_mb=size_val)
+            return self.send_json({"ok": True, "direct_io": direct_data})
+        elif self.path.startswith("/api/pipeline/asic_balancer/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            sess_val = int(params.get("sessions", [2])[0])
+            back_val = params.get("backend", ["nvenc"])[0]
+            asic_data = GPUEncoderSessionRebalancer.evaluate_session_admission(active_sessions_count=sess_val, requested_hardware_backend=back_val)
+            return self.send_json({"ok": True, "asic": asic_data})
         else:
             self.send_response(404)
             self.end_headers()

@@ -336,6 +336,10 @@ def audit_system():
         "editing.avx_downclocking_frequency_guard",
         "media.raw_stream_circular_io_buffer",
         "pipeline.gpu_power_state_transition_shield",
+        "core.system_interrupt_dpc_latency_mitigator",
+        "editing.gamma_space_integer_fast_lut",
+        "media.chunked_direct_io_stream_writer",
+        "pipeline.gpu_encoder_session_rebalancer",
     ]
 
     for mod_name in modules_to_test:
