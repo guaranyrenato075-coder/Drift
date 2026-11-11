@@ -340,6 +340,10 @@ def audit_system():
         "editing.gamma_space_integer_fast_lut",
         "media.chunked_direct_io_stream_writer",
         "pipeline.gpu_encoder_session_rebalancer",
+        "core.cpu_smt_hyperthreading_contention_isolator",
+        "editing.integer_matrix_3d_lut_interpolator",
+        "media.smart_av_sync_drift_compensator",
+        "pipeline.vram_paged_pool_fragmentation_defrag",
     ]
 
     for mod_name in modules_to_test:
