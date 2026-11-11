@@ -134,6 +134,10 @@ from core.windows_timer_resolution_optimizer import WindowsTimerResolutionOptimi
 from editing.audio_peak_fast_integer_scanner import AudioPeakFastIntegerScanner
 from media.speculative_disk_seek_canceller import SpeculativeDiskSeekCanceller
 from pipeline.gpu_compute_memory_barrier_guard import GPUComputeMemoryBarrierGuard
+from core.thermal_throttling_prediction_governor import ThermalThrottlingPredictionGovernor
+from storage.sparse_zero_copy_frame_pipe import SparseZeroCopyFramePipe
+from editing.timeline_visual_viewport_culler import TimelineVisualViewportCuller
+from media.audio_resample_subsampling_bypass import AudioResampleSubsamplingBypass
 from audio.multi_chapter_mood_soundtrack import MultiChapterMoodSoundtrackOrchestrator
 from editing.smart_ken_burns_punchin import SmartKenBurnsPunchInEngine
 from pipeline.render_checkpoint_manager import RenderCheckpointManager
@@ -428,6 +432,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#16a34a; color:#dcfce7; font-weight:600;" onclick="abrirAudioPeakModal()">🔊 Scanner de Picos Inteiro (Zero Float)</button>
       <button class="btn btn-secondary" style="border-color:#dc2626; color:#fee2e2; font-weight:600;" onclick="abrirSeekCancellerModal()">🛑 Cancelador de Seeks no SSD</button>
       <button class="btn btn-secondary" style="border-color:#7c3aed; color:#ede9fe; font-weight:600;" onclick="abrirGPUBarrierModal()">🛡️ Barreira de Memória GPU (No Stall)</button>
+      <button class="btn btn-secondary" style="border-color:#ea580c; color:#ffedd5; font-weight:600;" onclick="abrirThermalGovernorModal()">🔥 Prevenção Throttling CPU/GPU</button>
+      <button class="btn btn-secondary" style="border-color:#0284c7; color:#e0f2fe; font-weight:600;" onclick="abrirSparsePipeModal()">🧊 Pipe Zero-Copy 1080p (Pool RAM)</button>
+      <button class="btn btn-secondary" style="border-color:#65a30d; color:#ecfccb; font-weight:600;" onclick="abrirViewportCullerModal()">✂️ Culling de Linha do Tempo O(log N)</button>
+      <button class="btn btn-secondary" style="border-color:#0d9488; color:#ccfbf1; font-weight:600;" onclick="abrirAudioBypassModal()">🎵 Bypass Reamostragem (Bitstream)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -4756,6 +4764,152 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro na barreira de GPU: ${e.message}</div>`;
       }
     }
+
+    // --- Funções do Pacote Hardware-Armor Apex ---
+    async function abrirThermalGovernorModal() {
+      document.getElementById('thermal-governor-modal').style.display = 'flex';
+      avaliarThermalGovernor();
+    }
+    function fecharThermalGovernorModal() {
+      document.getElementById('thermal-governor-modal').style.display = 'none';
+    }
+    async function avaliarThermalGovernor() {
+      const temp = document.getElementById('thermal-governor-temp')?.value || '82';
+      const contentEl = document.getElementById('thermal-governor-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Avaliando telemetria e gradiente térmico...</div>';
+      try {
+        const res = await fetch(`/api/system/thermal_governor/evaluate?temp=${temp}`);
+        const data = await res.json();
+        if (data.ok && data.governor) {
+          const g = data.governor;
+          const badgeColor = g.thermal_state === 'CRITICAL' ? '#ef4444' : (g.thermal_state === 'SAFE' ? '#22c55e' : '#f97316');
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:${badgeColor};">${g.thermal_state} (${g.current_temp_celsius}°C)</span>
+                <span style="background:rgba(234,88,12,0.2); color:#ffedd5; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  Pausa: ${g.recommended_micro_pause_ms} ms
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Risco de Throttling: <strong>${g.throttling_risk}</strong> | Redução Térmica Estimada: -${g.estimated_temp_reduction_celsius}°C
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">${g.hardware_health}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#fed7aa;">${g.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no governador térmico: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirSparsePipeModal() {
+      document.getElementById('sparse-pipe-modal').style.display = 'flex';
+      consultarSparsePipe();
+    }
+    function fecharSparsePipeModal() {
+      document.getElementById('sparse-pipe-modal').style.display = 'none';
+    }
+    async function consultarSparsePipe() {
+      const contentEl = document.getElementById('sparse-pipe-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Verificando pool de quadros zero-copy...</div>';
+      try {
+        const res = await fetch('/api/storage/sparse_pipe/metrics');
+        const data = await res.json();
+        if (data.ok && data.pipe) {
+          const p = data.pipe;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#38bdf8;">Resolução: ${p.resolution} (Pool: ${p.pool_depth} frames)</span>
+                <span style="background:rgba(56,189,248,0.2); color:#bae6fd; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${p.gc_pressure_reduction_pct}% Pausas de GC
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                RAM Estática em Uso: ${p.static_ram_footprint_mb} MB | Alocações Transitórias Evitadas: <strong>${p.ram_churn_prevented_mb} MB</strong>
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#bae6fd;">${p.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no pipe zero-copy: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirViewportCullerModal() {
+      document.getElementById('viewport-culler-modal').style.display = 'flex';
+      simularViewportCuller();
+    }
+    function fecharViewportCullerModal() {
+      document.getElementById('viewport-culler-modal').style.display = 'none';
+    }
+    async function simularViewportCuller() {
+      const contentEl = document.getElementById('viewport-culler-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando geometria de viewport O(log N)...</div>';
+      try {
+        const res = await fetch('/api/editing/viewport_culler/simulate');
+        const data = await res.json();
+        if (data.ok && data.culler) {
+          const c = data.culler;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#84cc16;">${c.culled_clips_count} de ${c.total_clips} Clipes Ocultados da GPU</span>
+                <span style="background:rgba(132,204,22,0.2); color:#d9f99d; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${c.ui_render_savings_pct}% Carga Gráfica
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Clipes Visíveis Renderizados: ${c.visible_clips_count} (${c.visible_clip_ids.join(', ')})
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#ecfccb;">${c.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no culling de viewport: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirAudioBypassModal() {
+      document.getElementById('audio-bypass-modal').style.display = 'flex';
+      calcularAudioBypass();
+    }
+    function fecharAudioBypassModal() {
+      document.getElementById('audio-bypass-modal').style.display = 'none';
+    }
+    async function calcularAudioBypass() {
+      const srcHz = document.getElementById('audio-bypass-src')?.value || '48000';
+      const tgtHz = document.getElementById('audio-bypass-tgt')?.value || '48000';
+      const contentEl = document.getElementById('audio-bypass-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Verificando grafo de filtragem de áudio...</div>';
+      try {
+        const res = await fetch(`/api/media/audio_bypass/evaluate?src_hz=${srcHz}&tgt_hz=${tgtHz}`);
+        const data = await res.json();
+        if (data.ok && data.bypass) {
+          const b = data.bypass;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:${b.can_bypass_resample ? '#14b8a6' : '#f59e0b'};">${b.mode}</span>
+                <span style="background:rgba(20,184,166,0.2); color:#99f6e4; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${b.cpu_audio_processing_savings_pct}% Ciclos de CPU
+                </span>
+              </div>
+              <div style="font-size:0.75rem; font-family:monospace; color:#5eead4; background:#0f172a; padding:6px; border-radius:4px; margin:8px 0;">
+                FFmpeg Audio Filter: -af "${b.ffmpeg_audio_filter}"
+              </div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#ccfbf1;">${b.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no bypass de áudio: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -6196,6 +6350,105 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal Prevenção Throttling CPU/GPU -->
+  <div id="thermal-governor-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🔥</span> Prevenção Throttling CPU/GPU (Thermal Governor)
+        </h3>
+        <button onclick="fecharThermalGovernorModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">Temperatura Simulada:</label>
+          <select id="thermal-governor-temp" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="avaliarThermalGovernor()">
+            <option value="65">65°C (Operação Normal / Fria)</option>
+            <option value="78">78°C (Carga Intensa Sustentada)</option>
+            <option value="84" selected>84°C (Zona de Pacing Preventivo)</option>
+            <option value="91">91°C (Alerta Crítico / Arrefecimento Imediato)</option>
+          </select>
+        </div>
+        <div id="thermal-governor-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharThermalGovernorModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Pipe Zero-Copy 1080p (Pool RAM) -->
+  <div id="sparse-pipe-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:540px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🧊</span> Pipe Zero-Copy de Quadros (Zero Allocation)
+        </h3>
+        <button onclick="fecharSparsePipeModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="sparse-pipe-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharSparsePipeModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Culling de Linha do Tempo O(log N) -->
+  <div id="viewport-culler-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>✂️</span> Culling de Linha do Tempo O(log N)
+        </h3>
+        <button onclick="fecharViewportCullerModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="viewport-culler-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-primary" onclick="simularViewportCuller()">Recalcular Viewport</button>
+        <button class="btn btn-secondary" onclick="fecharViewportCullerModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Bypass Reamostragem (Bitstream Passthrough) -->
+  <div id="audio-bypass-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🎵</span> Bypass de Reamostragem de Áudio
+        </h3>
+        <button onclick="fecharAudioBypassModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Origem:</label>
+            <select id="audio-bypass-src" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularAudioBypass()">
+              <option value="48000" selected>48.000 Hz (Vídeo Nativo)</option>
+              <option value="44100">44.100 Hz (Música CD/MP3)</option>
+              <option value="96000">96.000 Hz (Hi-Res Audio)</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.85rem; color:var(--text-muted);">Destino:</label>
+            <select id="audio-bypass-tgt" style="padding:6px; background:var(--card-bg); border:1px solid var(--border); color:#fff; border-radius:6px;" onchange="calcularAudioBypass()">
+              <option value="48000" selected>48.000 Hz (Padrão YouTube/MP4)</option>
+              <option value="44100">44.100 Hz (Podcast/Web)</option>
+            </select>
+          </div>
+        </div>
+        <div id="audio-bypass-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAudioBypassModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -7221,6 +7474,30 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             fps = float(params.get("fps", [60.0])[0])
             barrier_data = GPUComputeMemoryBarrierGuard.generate_barrier_sync_policy(hw_acceleration=hw, fps=fps)
             return self.send_json({"ok": True, "barrier": barrier_data})
+        elif self.path.startswith("/api/system/thermal_governor/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            temp_val = float(params.get("temp", [82.0])[0])
+            governor = ThermalThrottlingPredictionGovernor(target_max_temp=82.0)
+            gov_data = governor.evaluate_thermal_pacing(current_temp_celsius=temp_val)
+            return self.send_json({"ok": True, "governor": gov_data})
+        elif self.path.startswith("/api/storage/sparse_pipe/metrics"):
+            pipe = SparseZeroCopyFramePipe(frame_width=1920, frame_height=1080, bytes_per_pixel=4, pool_depth=3)
+            for _ in range(60):
+                pipe.acquire_frame_buffer()
+            pipe_data = pipe.get_pipe_metrics()
+            return self.send_json({"ok": True, "pipe": pipe_data})
+        elif self.path.startswith("/api/editing/viewport_culler/simulate"):
+            sim_clips = [{"id": f"clip_{i*5}s", "start_sec": float(i * 5), "end_sec": float((i + 1) * 5)} for i in range(20)]
+            culler_data = TimelineVisualViewportCuller.cull_non_visible_clips(sim_clips, view_start_sec=15.0, view_end_sec=35.0)
+            return self.send_json({"ok": True, "culler": culler_data})
+        elif self.path.startswith("/api/media/audio_bypass/evaluate"):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            src_val = int(params.get("src_hz", [48000])[0])
+            tgt_val = int(params.get("tgt_hz", [48000])[0])
+            bypass_data = AudioResampleSubsamplingBypass.evaluate_audio_filter_chain(source_sample_rate_hz=src_val, target_sample_rate_hz=tgt_val)
+            return self.send_json({"ok": True, "bypass": bypass_data})
         else:
             self.send_response(404)
             self.end_headers()

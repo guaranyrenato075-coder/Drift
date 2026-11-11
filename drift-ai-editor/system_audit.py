@@ -316,6 +316,10 @@ def audit_system():
         "editing.audio_peak_fast_integer_scanner",
         "media.speculative_disk_seek_canceller",
         "pipeline.gpu_compute_memory_barrier_guard",
+        "core.thermal_throttling_prediction_governor",
+        "storage.sparse_zero_copy_frame_pipe",
+        "editing.timeline_visual_viewport_culler",
+        "media.audio_resample_subsampling_bypass",
     ]
 
     for mod_name in modules_to_test:
