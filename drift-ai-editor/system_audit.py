@@ -352,6 +352,10 @@ def audit_system():
         "editing.bezier_curve_integer_lookup_evaluator",
         "media.wav_header_in_place_patcher",
         "pipeline.gpu_pipeline_raster_early_z_culler",
+        "core.windows_gpu_scheduling_hags_coordinator",
+        "audio.chunked_spatial_audio_convolution_pruner",
+        "editing.delta_frame_zero_motion_skipper",
+        "pipeline.simd_packed_yuv_to_rgb_matrix_converter",
     ]
 
     for mod_name in modules_to_test:

@@ -194,6 +194,10 @@ from core.numa_node_memory_interleaving_arbiter import NUMANodeMemoryInterleavin
 from editing.bezier_curve_integer_lookup_evaluator import BezierCurveIntegerLookupEvaluator
 from media.wav_header_in_place_patcher import WAVHeaderInPlacePatcher
 from pipeline.gpu_pipeline_raster_early_z_culler import GPUPipelineRasterEarlyZCuller
+from core.windows_gpu_scheduling_hags_coordinator import WindowsGPUSchedulingHAGSCoordinator
+from audio.chunked_spatial_audio_convolution_pruner import ChunkedSpatialAudioConvolutionPruner
+from editing.delta_frame_zero_motion_skipper import DeltaFrameZeroMotionSkipper
+from pipeline.simd_packed_yuv_to_rgb_matrix_converter import SIMDPackedYUVToRGBMatrixConverter
 
 RAM_BUFFER = RamDiskBufferManager()
 MEDIA_DEDUP = MediaDeduplicator()
@@ -500,6 +504,10 @@ DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
       <button class="btn btn-secondary" style="border-color:#ec4899; color:#fce7f3; font-weight:600;" onclick="abrirBezierLUTModal()">📈 Curvas Bezier Inteiras O(1) (95% FPU Relief)</button>
       <button class="btn btn-secondary" style="border-color:#eab308; color:#fef08a; font-weight:600;" onclick="abrirWAVPatcherModal()">🪡 Patcher WAV In-Place (99.9% Menos I/O SSD)</button>
       <button class="btn btn-secondary" style="border-color:#a855f7; color:#f3e8ff; font-weight:600;" onclick="abrirEarlyZCullerModal()">🎯 Early-Z Raster Culler (Anti-Overdraw GPU)</button>
+      <button class="btn btn-secondary" style="border-color:#06b6d4; color:#cffafe; font-weight:600;" onclick="abrirHAGSModal()">⚡ Coordenador HAGS GPU (WDDM 2.7+)</button>
+      <button class="btn btn-secondary" style="border-color:#8b5cf6; color:#ede9fe; font-weight:600;" onclick="abrirAudioConvolutionModal()">🎧 Podador Convolução Áudio 3D (85% CPU Relief)</button>
+      <button class="btn btn-secondary" style="border-color:#10b981; color:#d1fae5; font-weight:600;" onclick="abrirZeroMotionModal()">⏭️ Salto Quadros Zero-Motion (Zero-Copy GPU)</button>
+      <button class="btn btn-secondary" style="border-color:#f97316; color:#ffedd5; font-weight:600;" onclick="abrirYUVConverterModal()">🌈 Conversor YUV->RGB Inteiro Q8 (3.5x Preview)</button>
 
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
         <label style="color: #a78bfa;">🎙️ Clonagem de Voz (Chatterbox)</label>
@@ -6147,6 +6155,150 @@ O Segredo do Foco Profundo</textarea>
         contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Early-Z Culler: ${e.message}</div>`;
       }
     }
+
+    async function abrirHAGSModal() {
+      document.getElementById('hags-modal').style.display = 'flex';
+      consultarHAGS();
+    }
+    function fecharHAGSModal() {
+      document.getElementById('hags-modal').style.display = 'none';
+    }
+    async function consultarHAGS() {
+      const contentEl = document.getElementById('hags-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Detectando status do Hardware-Accelerated GPU Scheduling...</div>';
+      try {
+        const res = await fetch('/api/core/hags/detect');
+        const data = await res.json();
+        if (data.ok && data.hags) {
+          const h = data.hags;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#06b6d4;">HAGS: ${h.hags_active ? 'ATIVO (GPU Dedicada)' : 'Modo Híbrido'}</span>
+                <span style="background:rgba(6,182,212,0.2); color:#cffafe; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${h.cpu_interrupt_reduction_pct}% Interrupções CPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Modelo de Driver: <strong>${h.driver_model}</strong> | Redução de Jitter: <strong>-${h.frame_pacing_jitter_reduction_pct}%</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">Agendamento Gráfico por Hardware Ativo</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${h.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no HAGS Coordinator: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirAudioConvolutionModal() {
+      document.getElementById('audio-convolution-modal').style.display = 'flex';
+      consultarAudioConvolution();
+    }
+    function fecharAudioConvolutionModal() {
+      document.getElementById('audio-convolution-modal').style.display = 'none';
+    }
+    async function consultarAudioConvolution() {
+      const contentEl = document.getElementById('audio-convolution-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Analisando poda psicoacústica de convolução...</div>';
+      try {
+        const res = await fetch('/api/audio/convolution_pruner/analyze');
+        const data = await res.json();
+        if (data.ok && data.convolution) {
+          const c = data.convolution;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#8b5cf6;">${c.speedup_factor}</span>
+                <span style="background:rgba(139,92,246,0.2); color:#ede9fe; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${c.cpu_convolution_load_reduction_pct}% Operações CPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Amostras Totais IR: <strong>${c.total_ir_samples.toLocaleString()}</strong> | Duração Acústica: <strong>${c.ir_duration_sec}s</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#a78bfa;">Algoritmo: ${c.algorithm}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${c.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro na Convolução de Áudio: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirZeroMotionModal() {
+      document.getElementById('zero-motion-modal').style.display = 'flex';
+      consultarZeroMotion();
+    }
+    function fecharZeroMotionModal() {
+      document.getElementById('zero-motion-modal').style.display = 'none';
+    }
+    async function consultarZeroMotion() {
+      const contentEl = document.getElementById('zero-motion-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Calculando reciclagem zero-copy de quadros estáticos...</div>';
+      try {
+        const res = await fetch('/api/editing/zero_motion/benchmark');
+        const data = await res.json();
+        if (data.ok && data.zero_motion) {
+          const z = data.zero_motion;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#10b981;">${z.frames_skipped_zero_copy}/${z.total_frames_in_clip} Quadros Reciclados</span>
+                <span style="background:rgba(16,185,129,0.2); color:#d1fae5; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${z.gpu_render_workload_reduction_pct}% Renderização GPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Tempo de GPU Poupado: <strong>${z.gpu_time_saved_ms} ms</strong> | Duração Clip: <strong>${z.static_duration_sec}s</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#4ade80;">Zero-Copy Buffer Reuse Ativo</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${z.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Zero-Motion: ${e.message}</div>`;
+      }
+    }
+
+    async function abrirYUVConverterModal() {
+      document.getElementById('yuv-converter-modal').style.display = 'flex';
+      consultarYUVConverter();
+    }
+    function fecharYUVConverterModal() {
+      document.getElementById('yuv-converter-modal').style.display = 'none';
+    }
+    async function consultarYUVConverter() {
+      const contentEl = document.getElementById('yuv-converter-content');
+      contentEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Testando conversão YUV->RGB inteira...</div>';
+      try {
+        const res = await fetch('/api/pipeline/yuv_converter/benchmark');
+        const data = await res.json();
+        if (data.ok && data.converter) {
+          const y = data.converter;
+          contentEl.innerHTML = `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:#f97316;">${y.timeline_playback_speedup}</span>
+                <span style="background:rgba(249,115,22,0.2); color:#ffedd5; font-size:0.8rem; padding:2px 8px; border-radius:4px; font-weight:700;">
+                  -${y.fpu_workload_reduction_pct}% Carga FPU
+                </span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin:8px 0;">
+                Pixels Avaliados (1080p): <strong>${y.tested_pixels.toLocaleString()}</strong> | Ops Float Eliminadas: <strong>${y.float_operations_eliminated_per_frame.toLocaleString()}/frame</strong>
+              </div>
+              <div style="font-size:0.8rem; color:#fdba74;">Algoritmo: ${y.algorithm}</div>
+              <div style="margin-top:8px; font-size:0.8rem; color:#f5f3ff;">${y.summary}</div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        contentEl.innerHTML = `<div style="color:#ef4444;">Erro no Conversor YUV: ${e.message}</div>`;
+      }
+    }
   </script>
 
   <!-- Modal de Estilos de Legenda -->
@@ -8421,6 +8573,78 @@ O Segredo do Foco Profundo</textarea>
       </div>
     </div>
   </div>
+
+  <!-- Modal HAGS Coordinator -->
+  <div id="hags-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>⚡</span> Coordenador HAGS GPU (WDDM 2.7+)
+        </h3>
+        <button onclick="fecharHAGSModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="hags-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharHAGSModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Audio Convolution Pruner -->
+  <div id="audio-convolution-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🎧</span> Podador Convolução Áudio 3D (85% CPU Relief)
+        </h3>
+        <button onclick="fecharAudioConvolutionModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="audio-convolution-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharAudioConvolutionModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Zero Motion Skipper -->
+  <div id="zero-motion-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>⏭️</span> Salto Quadros Zero-Motion (Zero-Copy GPU)
+        </h3>
+        <button onclick="fecharZeroMotionModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="zero-motion-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharZeroMotionModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal YUV Converter -->
+  <div id="yuv-converter-modal" class="modal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:560px; width:90%; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+          <span>🌈</span> Conversor YUV->RGB Inteiro Q8 (3.5x Preview)
+        </h3>
+        <button onclick="fecharYUVConverterModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <div id="yuv-converter-content"></div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; align-items:center; background:var(--card-bg);">
+        <button class="btn btn-secondary" onclick="fecharYUVConverterModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -9640,6 +9864,18 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
         elif self.path.startswith("/api/pipeline/early_z_culler/analyze"):
             early_z_data = GPUPipelineRasterEarlyZCuller.analyze_multitrack_overdraw_savings()
             return self.send_json({"ok": True, "early_z": early_z_data})
+        elif self.path.startswith("/api/core/hags/detect"):
+            hags_data = WindowsGPUSchedulingHAGSCoordinator.detect_hags_status()
+            return self.send_json({"ok": True, "hags": hags_data})
+        elif self.path.startswith("/api/audio/convolution_pruner/analyze"):
+            pruner_data = ChunkedSpatialAudioConvolutionPruner.analyze_cpu_convolution_relief()
+            return self.send_json({"ok": True, "convolution": pruner_data})
+        elif self.path.startswith("/api/editing/zero_motion/benchmark"):
+            motion_data = DeltaFrameZeroMotionSkipper.benchmark_static_scene_efficiency()
+            return self.send_json({"ok": True, "zero_motion": motion_data})
+        elif self.path.startswith("/api/pipeline/yuv_converter/benchmark"):
+            yuv_data = SIMDPackedYUVToRGBMatrixConverter.benchmark_conversion_throughput()
+            return self.send_json({"ok": True, "converter": yuv_data})
         else:
             self.send_response(404)
             self.end_headers()
