@@ -348,6 +348,10 @@ def audit_system():
         "editing.alpha_channel_integer_fast_blender",
         "media.mp3_aac_padding_silence_trimmer",
         "pipeline.gpu_asynchronous_compute_queue_arbiter",
+        "core.numa_node_memory_interleaving_arbiter",
+        "editing.bezier_curve_integer_lookup_evaluator",
+        "media.wav_header_in_place_patcher",
+        "pipeline.gpu_pipeline_raster_early_z_culler",
     ]
 
     for mod_name in modules_to_test:
