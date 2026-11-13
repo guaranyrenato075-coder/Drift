@@ -65,8 +65,7 @@ class TimelineBuilder:
                     imported_assets[asset.get("name", "")] = asset.get("id")
                     imported_assets[str(asset.get("id"))] = asset.get("id")
 
-        # Step 3: Ensure we have video and audio tracks
-        # Let's inspect timeline tracks
+        # Step 3: Ensure we have video and audio tracks with verified indices
         ins = self.client.inspect(clips=False)
         tracks = ins.get("tracks", [])
         has_video_track = any(t.get("type") == "video" for t in tracks)
@@ -76,6 +75,21 @@ class TimelineBuilder:
             self.client.apply([{"tool": "add_track", "args": {"type": "video"}}])
         if not has_audio_track:
             self.client.apply([{"tool": "add_track", "args": {"type": "audio"}}])
+
+        ins = self.client.inspect(clips=False)
+        tracks = ins.get("tracks", [])
+        audio_track_idx = None
+        video_track_idx = None
+        for t in tracks:
+            if t.get("type") == "audio" and audio_track_idx is None:
+                audio_track_idx = t.get("i", 0)
+            elif t.get("type") == "video" and video_track_idx is None:
+                video_track_idx = t.get("i", 0)
+
+        if audio_track_idx is None:
+            audio_track_idx = 0
+        if video_track_idx is None:
+            video_track_idx = 0
 
         # Step 4: Place clips
         placed_ops: List[Dict[str, Any]] = []
@@ -90,7 +104,7 @@ class TimelineBuilder:
                         "args": {
                             "asset": asset_id,
                             "at": scene.start_time,
-                            "track": 1  # Audio track
+                            "track": audio_track_idx
                         }
                     })
 
@@ -104,7 +118,7 @@ class TimelineBuilder:
                         "args": {
                             "asset": asset_id,
                             "at": scene.start_time,
-                            "track": 0  # Video track
+                            "track": video_track_idx
                         }
                     })
 

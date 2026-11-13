@@ -32,7 +32,7 @@ class DriftMcpClient:
             raise FileNotFoundError(f"Drift executable not found at {self.drift_exe}")
 
         self.process = subprocess.Popen(
-            [str(self.drift_exe), "--headless", "--mcp-stdio"],
+            [str(self.drift_exe), "--headless", "--isolated-session", "--mcp-stdio"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
