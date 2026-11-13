@@ -15,10 +15,11 @@ Item {
     property string activeProfile: "filosofico"
     property string selectedAspectRatio: "16:9"
     property int playingSceneOrder: -1
+    property string currentProjectId: ""
 
     function sendAiRequest(endpoint, payload, callback) {
         root.isBusy = true
-        root.statusMessage = qsTr("Processando...")
+        root.statusMessage = qsTr("Processando com IA...")
         const xhr = new XMLHttpRequest()
         xhr.open("POST", "http://127.0.0.1:8765/api/" + endpoint)
         xhr.setRequestHeader("Content-Type", "application/json")
@@ -33,7 +34,11 @@ Item {
                         callback(false, { error: e.toString() })
                     }
                 } else {
-                    callback(false, { error: xhr.statusText })
+                    const msg = xhr.status === 0
+                        ? qsTr("Servidor de IA offline. Dê dois cliques em ABRIR_DRIFT_SOFTWARE.bat!")
+                        : (xhr.statusText || qsTr("Erro na comunicação com o servidor de IA"))
+                    root.statusMessage = msg
+                    callback(false, { error: msg })
                 }
             }
         }
@@ -42,7 +47,7 @@ Item {
 
     function playSceneAudio(sceneOrder) {
         root.playingSceneOrder = sceneOrder
-        root.sendAiRequest("play_audio", { scene_order: sceneOrder, project_id: "" }, function(ok, res) {
+        root.sendAiRequest("play_audio", { scene_order: sceneOrder, project_id: root.currentProjectId }, function(ok, res) {
             if (!ok) {
                 root.statusMessage = qsTr("Erro ao tocar áudio da Cena %1").arg(sceneOrder)
                 root.playingSceneOrder = -1
@@ -219,6 +224,7 @@ Item {
                         exaggeration: 0.5
                     }, function(ok, res) {
                         if (ok && res.plan) {
+                            root.currentProjectId = res.plan.project_id || ""
                             root.scenesList = res.plan.scenes || []
                             root.statusMessage = qsTr("%1 cenas analisadas semântica e visualmente.").arg(root.scenesList.length)
                         } else {
@@ -238,7 +244,7 @@ Item {
                     variant: "secondary"
                     enabled: !root.isBusy && root.scenesList.length > 0
                     onClicked: {
-                        root.sendAiRequest("voice", { project_id: "" }, function(ok, res) {
+                        root.sendAiRequest("voice", { project_id: root.currentProjectId }, function(ok, res) {
                             if (ok) {
                                 if (res.plan && res.plan.scenes) {
                                     root.scenesList = res.plan.scenes
@@ -257,7 +263,7 @@ Item {
                     variant: "secondary"
                     enabled: !root.isBusy && root.scenesList.length > 0
                     onClicked: {
-                        root.sendAiRequest("search", { project_id: "" }, function(ok, res) {
+                        root.sendAiRequest("search", { project_id: root.currentProjectId }, function(ok, res) {
                             if (ok) {
                                 if (res.plan && res.plan.scenes) {
                                     root.scenesList = res.plan.scenes
@@ -355,9 +361,9 @@ Item {
                 width: parent.width
                 text: qsTr("🛡️ Auditoria de Qualidade Pré-Montagem")
                 variant: "secondary"
-                enabled: !root.isBusy
+                enabled: !root.isBusy && root.scenesList.length > 0
                 onClicked: {
-                    root.sendAiRequest("audit", { project_id: "" }, function(ok, res) {
+                    root.sendAiRequest("audit", { project_id: root.currentProjectId }, function(ok, res) {
                         if (ok) {
                             root.statusMessage = qsTr("Nota de Qualidade: %1/100 - %2").arg(res.score).arg(res.summary)
                         } else {
@@ -373,7 +379,12 @@ Item {
                 variant: "primary"
                 enabled: !root.isBusy
                 onClicked: {
-                    root.sendAiRequest("build", { project_id: "" }, function(ok, res) {
+                    if (root.scenesList.length === 0) {
+                        root.statusMessage = qsTr("Atenção: Execute '1. Analisar Roteiro Semântico' primeiro para gerar as cenas!")
+                        return
+                    }
+                    root.statusMessage = qsTr("Iniciando montagem protegida na timeline...")
+                    root.sendAiRequest("build", { project_id: root.currentProjectId }, function(ok, res) {
                         if (ok) {
                             root.statusMessage = qsTr("Timeline montada com sucesso em etapas seguras!")
                             root.added()

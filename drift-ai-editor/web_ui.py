@@ -8878,6 +8878,19 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
     skill_bridge = GeminiSkillBridge()
     policy_manager = PlatformPolicyManager()
 
+    def _resolve_plan_from_data(self, data: Dict[str, Any]) -> Optional[ProjectPlan]:
+        project_id = data.get("project_id") if data else None
+        plan = self.repo.get(project_id) if project_id else None
+        if not plan:
+            try:
+                with self.repo._connection() as conn:
+                    row = conn.execute("SELECT plan_data FROM projects ORDER BY updated_at DESC LIMIT 1").fetchone()
+                    if row:
+                        plan = ProjectPlan.from_dict(json.loads(row["plan_data"]))
+            except Exception:
+                pass
+        return plan
+
     def _validate_origin_and_host(self) -> bool:
         """Mitigates Cross-Site Request Forgery (CSRF) and DNS Rebinding."""
         host = self.headers.get("Host", "")
@@ -10780,10 +10793,9 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"ok": True, "plan": plan.to_dict()})
 
         elif self.path == "/api/voice":
-            project_id = data.get("project_id")
-            plan = self.repo.get(project_id)
+            plan = self._resolve_plan_from_data(data)
             if not plan:
-                return self.send_json({"ok": False, "error": "Not found"}, 404)
+                return self.send_json({"ok": False, "error": "Roteiro não encontrado. Analise o roteiro na etapa 1 primeiro!"}, 404)
 
             client = DriftMcpClient()
             try:
@@ -10800,10 +10812,9 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"ok": True, "plan": plan.to_dict(), "total_duration": round(plan.total_duration(), 2)})
 
         elif self.path == "/api/search":
-            project_id = data.get("project_id")
-            plan = self.repo.get(project_id)
+            plan = self._resolve_plan_from_data(data)
             if not plan:
-                return self.send_json({"ok": False, "error": "Not found"}, 404)
+                return self.send_json({"ok": False, "error": "Roteiro não encontrado. Analise o roteiro na etapa 1 primeiro!"}, 404)
 
             with MemoryManager.memory_guard("search"):
                 DiskSpaceGuard.ensure_healthy_space(min_free_gb=0.3)
@@ -10828,10 +10839,9 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"ok": True, "plan": plan.to_dict()})
 
         elif self.path == "/api/build":
-            project_id = data.get("project_id")
-            plan = self.repo.get(project_id)
+            plan = self._resolve_plan_from_data(data)
             if not plan:
-                return self.send_json({"ok": False, "error": "Not found"}, 404)
+                return self.send_json({"ok": False, "error": "Roteiro não encontrado. Analise o roteiro na etapa 1 primeiro!"}, 404)
 
             with MemoryManager.memory_guard("build"):
                 downloader = MediaDownloader()
@@ -10853,10 +10863,9 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"ok": True, "plan": plan.to_dict()})
 
         elif self.path == "/api/export":
-            project_id = data.get("project_id")
-            plan = self.repo.get(project_id)
+            plan = self._resolve_plan_from_data(data)
             if not plan:
-                return self.send_json({"ok": False, "error": "Not found"}, 404)
+                return self.send_json({"ok": False, "error": "Roteiro não encontrado. Analise o roteiro na etapa 1 primeiro!"}, 404)
 
             safe_title = "".join(c for c in plan.title if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
             out_file = Path("d:/CUTWIREDRIFT") / f"{safe_title or 'video_ia'}.mp4"
