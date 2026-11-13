@@ -135,7 +135,7 @@ McpController::McpController(AppController *app, QObject *parent)
     // for a stdio-only headless run. applyStartOnLaunch() is the GUI-only opt-in,
     // called once from Main.qml's own startup sequence.
     m_mcpStartOnLaunch =
-        QSettings().value(QStringLiteral("mcp/startOnLaunch"), false).toBool();
+        QSettings().value(QStringLiteral("mcp/startOnLaunch"), true).toBool();
 }
 
 McpController::~McpController()

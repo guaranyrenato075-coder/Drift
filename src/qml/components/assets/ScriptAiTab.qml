@@ -17,6 +17,15 @@ Item {
     property int playingSceneOrder: -1
     property string currentProjectId: ""
 
+    Component.onCompleted: {
+        if (typeof EditorState !== "undefined" && EditorState && EditorState.mcp) {
+            EditorState.mcp.startOnLaunch = true
+            if (!EditorState.mcp.running) {
+                EditorState.mcp.setEnabled(true)
+            }
+        }
+    }
+
     function sendAiRequest(endpoint, payload, callback) {
         root.isBusy = true
         root.statusMessage = qsTr("Processando com IA...")
@@ -410,10 +419,30 @@ Item {
                         root.statusMessage = qsTr("Atenção: Execute '1. Analisar Roteiro Semântico' primeiro para gerar as cenas!")
                         return
                     }
+                    if (typeof EditorState !== "undefined" && EditorState && EditorState.mcp && !EditorState.mcp.running) {
+                        EditorState.mcp.setEnabled(true)
+                    }
                     root.statusMessage = qsTr("Iniciando montagem protegida na timeline...")
                     root.sendAiRequest("build", { project_id: root.currentProjectId }, function(ok, res) {
                         if (ok) {
                             root.statusMessage = qsTr("Timeline montada com sucesso em etapas seguras!")
+                            try {
+                                if (res.plan && res.plan.scenes) {
+                                    var urls = []
+                                    for (var i = 0; i < res.plan.scenes.length; i++) {
+                                        var sc = res.plan.scenes[i]
+                                        if (sc.selected_media && sc.selected_media.local_cached_path) {
+                                            var p = sc.selected_media.local_cached_path.replace(/\\/g, "/")
+                                            urls.push(Qt.resolvedUrl("file:///" + p))
+                                        }
+                                    }
+                                    if (urls.length > 0 && typeof EditorState !== "undefined" && EditorState.assetLibrary) {
+                                        EditorState.assetLibrary.importUrls(urls)
+                                    }
+                                }
+                            } catch(e) {
+                                console.warn("Bin sync warning:", e)
+                            }
                             root.added()
                         } else {
                             root.statusMessage = qsTr("Erro de montagem: ") + (res.error || "")

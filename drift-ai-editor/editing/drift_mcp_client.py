@@ -22,15 +22,67 @@ class DriftMcpClient:
 
         self.process: Optional[subprocess.Popen] = None
         self._req_id = 1
+        self.http_mode = False
+        self.http_url = ""
+        self.http_token = ""
+
+    def _find_running_gui_session(self) -> Optional[Dict[str, Any]]:
+        """Scans for an active Drift GUI editor instance with MCP enabled."""
+        import glob
+        import urllib.request
+        temp_candidates = [
+            os.environ.get("TEMP", ""),
+            os.environ.get("TMP", ""),
+            str(Path.home() / "AppData" / "Local" / "Temp")
+        ]
+        seen = set()
+        for base in temp_candidates:
+            if not base or not os.path.isdir(base):
+                continue
+            pattern = os.path.join(base, "drift", "mcp-sessions", "*.json")
+            for sf in glob.glob(pattern):
+                if sf in seen:
+                    continue
+                seen.add(sf)
+                try:
+                    with open(sf, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    port = data.get("port")
+                    token = data.get("token")
+                    if port and token:
+                        health_url = f"http://127.0.0.1:{port}/health"
+                        req = urllib.request.Request(health_url)
+                        with urllib.request.urlopen(req, timeout=1.0) as resp:
+                            if resp.status == 200:
+                                return data
+                except Exception:
+                    pass
+        return None
 
     def start(self):
-        """Starts the drift.exe process with --headless and --mcp-stdio."""
+        """
+        Connects to Drift's MCP server.
+        Prioritizes connecting directly to the running graphical editor window
+        so that clip insertions appear live on screen in the active timeline!
+        Falls back to starting a headless instance if no GUI is running.
+        """
+        # 1. Try to attach to the active graphical window
+        gui_session = self._find_running_gui_session()
+        if gui_session:
+            self.http_mode = True
+            port = gui_session["port"]
+            self.http_token = gui_session.get("token", "")
+            self.http_url = f"http://127.0.0.1:{port}/mcp"
+            return {"active_gui": True, "port": port}
+
+        # 2. Fall back to headless subprocess
         if self.process and self.process.poll() is None:
             return
 
         if not self.drift_exe.exists():
             raise FileNotFoundError(f"Drift executable not found at {self.drift_exe}")
 
+        self.http_mode = False
         self.process = subprocess.Popen(
             [str(self.drift_exe), "--headless", "--isolated-session", "--mcp-stdio"],
             stdin=subprocess.PIPE,
@@ -52,7 +104,10 @@ class DriftMcpClient:
         return init_res
 
     def stop(self):
-        """Gracefully terminates the Drift process."""
+        """Terminates headless Drift process (leaves running GUI intact)."""
+        if self.http_mode:
+            self.http_mode = False
+            return
         if self.process:
             try:
                 self.process.terminate()
@@ -68,6 +123,9 @@ class DriftMcpClient:
         return req_id
 
     def _send_notification(self, method: str, params: Dict[str, Any]):
+        if self.http_mode:
+            # Notifications over HTTP are optional or sent as normal requests
+            return
         if not self.process or self.process.poll() is not None:
             raise RuntimeError("Drift MCP process is not running")
         msg = {
@@ -79,9 +137,6 @@ class DriftMcpClient:
         self.process.stdin.flush()
 
     def _send_request(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        if not self.process or self.process.poll() is not None:
-            raise RuntimeError("Drift MCP process is not running")
-
         req_id = self._next_id()
         msg = {
             "jsonrpc": "2.0",
@@ -89,6 +144,27 @@ class DriftMcpClient:
             "method": method,
             "params": params
         }
+
+        if self.http_mode:
+            import urllib.request
+            req = urllib.request.Request(
+                self.http_url,
+                data=json.dumps(msg).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.http_token}"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=30.0) as resp:
+                data = resp.read().decode("utf-8")
+                res = json.loads(data)
+                if "error" in res:
+                    raise RuntimeError(f"MCP HTTP Error: {res['error']}")
+                return res.get("result", {})
+
+        if not self.process or self.process.poll() is not None:
+            raise RuntimeError("Drift MCP process is not running")
+
         self.process.stdin.write(json.dumps(msg) + "\n")
         self.process.stdin.flush()
 
