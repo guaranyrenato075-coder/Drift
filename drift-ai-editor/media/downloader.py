@@ -1,3 +1,4 @@
+import os
 import urllib.request
 import urllib.parse
 import ipaddress
@@ -83,22 +84,30 @@ class MediaDownloader:
 
         target_path = self.cache.get_target_path(candidate.platform, candidate.external_id, candidate.download_url, ext)
         
-        # Download to a temporary file first
+        # Download to a temporary file first (safely closing fd for Windows file lock compatibility)
         temp_fd, temp_path_str = tempfile.mkstemp(suffix=ext, dir=TEMP_DIR)
+        os.close(temp_fd)
         temp_path = Path(temp_path_str)
 
         try:
             req = urllib.request.Request(
                 candidate.download_url,
-                headers={"User-Agent": "Drift-AI-Editor/1.0"}
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "*/*"
+                }
             )
-            with urllib.request.urlopen(req, timeout=timeout_sec) as response, open(temp_fd, "wb") as out_file:
+            with urllib.request.urlopen(req, timeout=timeout_sec) as response, open(temp_path, "wb") as out_file:
                 shutil.copyfileobj(response, out_file)
 
             # Validate the temporary file
             valid, msg = MediaValidator.validate_file(temp_path)
             if not valid:
-                temp_path.unlink(missing_ok=True)
+                try:
+                    if temp_path.exists():
+                        temp_path.unlink()
+                except Exception:
+                    pass
                 return False, None, f"Falha na validação do arquivo baixado: {msg}"
 
             # Atomically move to target cached path
@@ -107,6 +116,10 @@ class MediaDownloader:
             return True, target_path, "Download concluído com sucesso"
 
         except Exception as e:
-            temp_path.unlink(missing_ok=True)
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except Exception:
+                pass
             return False, None, f"Erro durante o download: {str(e)}"
 

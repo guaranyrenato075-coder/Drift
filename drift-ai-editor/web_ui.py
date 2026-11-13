@@ -10843,24 +10843,35 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             if not plan:
                 return self.send_json({"ok": False, "error": "Roteiro não encontrado. Analise o roteiro na etapa 1 primeiro!"}, 404)
 
-            with MemoryManager.memory_guard("build"):
-                downloader = MediaDownloader()
-                for s in plan.scenes:
-                    if s.selected_media and not s.selected_media.local_cached_path:
-                        ok, path, _ = downloader.download_candidate(s.selected_media)
-                        if ok and path:
-                            s.selected_media.local_cached_path = str(path)
+            try:
+                with MemoryManager.memory_guard("build"):
+                    downloader = MediaDownloader()
+                    for s in plan.scenes:
+                        if s.selected_media and not s.selected_media.local_cached_path:
+                            ok, path, _ = downloader.download_candidate(s.selected_media)
+                            if ok and path:
+                                s.selected_media.local_cached_path = str(path)
+                            else:
+                                for alt in getattr(s, "candidates", []):
+                                    if alt.download_url != s.selected_media.download_url:
+                                        ok_alt, path_alt, _ = downloader.download_candidate(alt)
+                                        if ok_alt and path_alt:
+                                            alt.local_cached_path = str(path_alt)
+                                            s.selected_media = alt
+                                            break
 
-                client = DriftMcpClient()
-                try:
-                    client.start()
-                    builder = TimelineBuilder(client)
-                    builder.build_timeline(plan)
-                    self.repo.save(plan)
-                finally:
-                    client.stop()
+                    client = DriftMcpClient()
+                    try:
+                        client.start()
+                        builder = TimelineBuilder(client)
+                        builder.build_timeline(plan)
+                        self.repo.save(plan)
+                    finally:
+                        client.stop()
 
-            self.send_json({"ok": True, "plan": plan.to_dict()})
+                return self.send_json({"ok": True, "plan": plan.to_dict()})
+            except Exception as e:
+                return self.send_json({"ok": False, "error": f"Erro de montagem: {str(e)}"}, 500)
 
         elif self.path == "/api/export":
             plan = self._resolve_plan_from_data(data)
