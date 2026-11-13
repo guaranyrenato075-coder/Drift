@@ -356,6 +356,10 @@ def audit_system():
         "audio.chunked_spatial_audio_convolution_pruner",
         "editing.delta_frame_zero_motion_skipper",
         "pipeline.simd_packed_yuv_to_rgb_matrix_converter",
+        "director.micro_hook_retention_cadence_engine",
+        "editing.auto_cinematic_motion_blur_interpolator",
+        "audio.formant_preserving_voice_clarity_enhancer",
+        "pipeline.smart_broll_semantic_variety_curator",
     ]
 
     for mod_name in modules_to_test:
