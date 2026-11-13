@@ -293,7 +293,7 @@ Item {
                     model: root.scenesList
                     delegate: Rectangle {
                         width: contentCol.width
-                        height: 52
+                        height: 64
                         radius: 4
                         color: Theme.c.panelBackgroundDarker || "#1a1c20"
                         border.color: root.playingSceneOrder === modelData.order ? "#3b82f6" : "#2d3139"
@@ -319,22 +319,49 @@ Item {
                                 }
                             }
 
+                            // Visual Media Thumbnail Preview
+                            Rectangle {
+                                width: 56
+                                height: 42
+                                radius: 3
+                                color: "#111317"
+                                clip: true
+                                anchors.verticalCenter: parent.verticalCenter
+                                border.color: "#374151"
+                                border.width: 1
+
+                                Image {
+                                    anchors.fill: parent
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    source: (modelData.selected_media && modelData.selected_media.preview_url) ? modelData.selected_media.preview_url : ""
+                                }
+
+                                ThemedLabel {
+                                    anchors.centerIn: parent
+                                    text: "🎬"
+                                    visible: !modelData.selected_media || !modelData.selected_media.preview_url
+                                    size: "xs"
+                                }
+                            }
+
                             Column {
-                                width: parent.width - 24 - playBtn.width - Theme.spacingSm * 3
+                                width: parent.width - 24 - 56 - playBtn.width - Theme.spacingSm * 4
                                 anchors.verticalCenter: parent.verticalCenter
                                 ThemedLabel {
                                     width: parent.width
                                     elide: Text.ElideRight
                                     text: modelData.narration_text || ""
                                     size: "xs"
+                                    font.bold: true
                                     color: "#f1f5f9"
                                 }
                                 ThemedLabel {
                                     width: parent.width
                                     elide: Text.ElideRight
-                                    text: (modelData.selected_media ? ("[" + modelData.selected_media.platform + "] ") : "") + (modelData.visual_description || "")
+                                    text: (modelData.selected_media ? ("[" + modelData.selected_media.platform.toUpperCase() + "] ") : "") + (modelData.visual_description || "")
                                     size: "xs"
-                                    color: "#94a3b8"
+                                    color: "#38bdf8"
                                 }
                             }
 
