@@ -255,8 +255,9 @@ Item {
                     onClicked: {
                         root.sendAiRequest("voice", { project_id: root.currentProjectId }, function(ok, res) {
                             if (ok) {
-                                if (res.plan && res.plan.scenes) {
-                                    root.scenesList = res.plan.scenes
+                                if (res.plan) {
+                                    if (res.plan.project_id) root.currentProjectId = res.plan.project_id
+                                    if (res.plan.scenes) root.scenesList = res.plan.scenes
                                 }
                                 root.statusMessage = qsTr("Voz gerada e alinhada temporalmente!")
                             } else {
@@ -274,8 +275,9 @@ Item {
                     onClicked: {
                         root.sendAiRequest("search", { project_id: root.currentProjectId }, function(ok, res) {
                             if (ok) {
-                                if (res.plan && res.plan.scenes) {
-                                    root.scenesList = res.plan.scenes
+                                if (res.plan) {
+                                    if (res.plan.project_id) root.currentProjectId = res.plan.project_id
+                                    if (res.plan.scenes) root.scenesList = res.plan.scenes
                                 }
                                 root.statusMessage = qsTr("Vídeos e imagens ranqueados com alternativas!")
                             } else {
@@ -427,17 +429,24 @@ Item {
                         if (ok) {
                             root.statusMessage = qsTr("Timeline montada com sucesso em etapas seguras!")
                             try {
-                                if (res.plan && res.plan.scenes) {
-                                    var urls = []
-                                    for (var i = 0; i < res.plan.scenes.length; i++) {
-                                        var sc = res.plan.scenes[i]
-                                        if (sc.selected_media && sc.selected_media.local_cached_path) {
-                                            var p = sc.selected_media.local_cached_path.replace(/\\/g, "/")
-                                            urls.push(Qt.resolvedUrl("file:///" + p))
+                                if (res.plan) {
+                                    if (res.plan.project_id) root.currentProjectId = res.plan.project_id
+                                    if (res.plan.scenes) {
+                                        var urls = []
+                                        for (var i = 0; i < res.plan.scenes.length; i++) {
+                                            var sc = res.plan.scenes[i]
+                                            if (sc.audio_path) {
+                                                var pAud = sc.audio_path.replace(/\\/g, "/")
+                                                urls.push(Qt.resolvedUrl("file:///" + pAud))
+                                            }
+                                            if (sc.selected_media && sc.selected_media.local_cached_path) {
+                                                var p = sc.selected_media.local_cached_path.replace(/\\/g, "/")
+                                                urls.push(Qt.resolvedUrl("file:///" + p))
+                                            }
                                         }
-                                    }
-                                    if (urls.length > 0 && typeof EditorState !== "undefined" && EditorState.assetLibrary) {
-                                        EditorState.assetLibrary.importUrls(urls)
+                                        if (urls.length > 0 && typeof EditorState !== "undefined" && EditorState.assetLibrary) {
+                                            EditorState.assetLibrary.importUrls(urls)
+                                        }
                                     }
                                 }
                             } catch(e) {

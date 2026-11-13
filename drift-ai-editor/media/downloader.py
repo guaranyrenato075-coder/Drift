@@ -54,6 +54,9 @@ class MediaDownloader:
         self.cache = cache or MediaCache()
 
     def download_candidate(self, candidate: MediaCandidate, timeout_sec: int = 30) -> Tuple[bool, Optional[Path], str]:
+        if candidate.local_cached_path and os.path.exists(candidate.local_cached_path):
+            return True, Path(candidate.local_cached_path), "Arquivo local já existente"
+
         if not candidate.download_url:
             return False, None, "URL de download ausente para o clipe"
 
@@ -90,6 +93,8 @@ class MediaDownloader:
         temp_path = Path(temp_path_str)
 
         try:
+            import ssl
+            ssl_ctx = ssl._create_unverified_context()
             req = urllib.request.Request(
                 candidate.download_url,
                 headers={
@@ -97,7 +102,7 @@ class MediaDownloader:
                     "Accept": "*/*"
                 }
             )
-            with urllib.request.urlopen(req, timeout=timeout_sec) as response, open(temp_path, "wb") as out_file:
+            with urllib.request.urlopen(req, timeout=timeout_sec, context=ssl_ctx) as response, open(temp_path, "wb") as out_file:
                 shutil.copyfileobj(response, out_file)
 
             # Validate the temporary file

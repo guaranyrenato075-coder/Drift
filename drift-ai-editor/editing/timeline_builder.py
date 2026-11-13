@@ -131,8 +131,8 @@ class TimelineBuilder:
                 if idx < len(done_list):
                     res_val = done_list[idx].get("result", {})
                     clip_uuid = res_val.get("clip")
-                    # If this was a visual track 0 clip
-                    if op["args"].get("track") == 0 and clip_uuid:
+                    # If this was a visual video track clip
+                    if op["args"].get("track") == video_track_idx and clip_uuid:
                         video_clip_count += 1
                         # 1. Silence native audio of stock footage
                         self.client.apply([{
@@ -168,7 +168,7 @@ class TimelineBuilder:
                     self.client.apply([{
                         "tool": "add_transition",
                         "args": {
-                            "track": 0,
+                            "track": video_track_idx,
                             "index": c_idx,
                             "kind": plan.config.transition_kind,
                             "duration": 0.5
@@ -186,20 +186,22 @@ class TimelineBuilder:
                 m_assets = done_m[0]["result"].get("assets", [])
                 if m_assets:
                     m_id = m_assets[0].get("id")
-                    # Ensure audio lane 2 exists
                     self.client.apply([{"tool": "add_track", "args": {"type": "audio"}}])
+                    ins_post = self.client.inspect(clips=False)
+                    all_tracks = ins_post.get("tracks", [])
+                    music_track_idx = all_tracks[-1].get("i", 2) if all_tracks else 2
                     self.client.apply([{
                         "tool": "place_clip",
-                        "args": {"asset": m_id, "at": 0.0, "track": 2}
+                        "args": {"asset": m_id, "at": 0.0, "track": music_track_idx}
                     }])
-                    # Apply Auto-Ducking under narration (track 1)
-                    if plan.config.auto_ducking:
+                    # Apply Auto-Ducking under narration track
+                    if plan.config.auto_ducking and audio_track_idx is not None:
                         self.client.apply([{
                             "tool": "duck_under",
                             "args": {
-                                "track": 2,
+                                "track": music_track_idx,
                                 "index": 0,
-                                "over_track": 1,
+                                "over_track": audio_track_idx,
                                 "amount": 0.25
                             }
                         }])

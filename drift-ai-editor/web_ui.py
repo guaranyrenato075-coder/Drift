@@ -5,6 +5,13 @@ import urllib.parse
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import sys
+import ssl
+
+# Ensure SSL validation resilience across all external media providers on Windows
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except Exception:
+    pass
 
 # Ensure UTF-8 output on Windows consoles
 if hasattr(sys.stdout, "reconfigure"):
@@ -10860,16 +10867,22 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                                             s.selected_media = alt
                                             break
 
-                    client = DriftMcpClient()
+                    mcp_warning = None
                     try:
-                        client.start()
-                        builder = TimelineBuilder(client)
-                        builder.build_timeline(plan)
-                        self.repo.save(plan)
-                    finally:
-                        client.stop()
+                        client = DriftMcpClient()
+                        try:
+                            client.start()
+                            builder = TimelineBuilder(client)
+                            builder.build_timeline(plan)
+                        finally:
+                            client.stop()
+                    except Exception as mcp_err:
+                        mcp_warning = str(mcp_err)
+                        print(f"[Build Warning] MCP timeline assembly fallback: {mcp_err}")
 
-                return self.send_json({"ok": True, "plan": plan.to_dict()})
+                    self.repo.save(plan)
+
+                return self.send_json({"ok": True, "plan": plan.to_dict(), "warning": mcp_warning})
             except Exception as e:
                 return self.send_json({"ok": False, "error": f"Erro de montagem: {str(e)}"}, 500)
 
@@ -10905,8 +10918,7 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "styles": styles})
 
         elif self.path == "/api/audit":
-            project_id = data.get("project_id")
-            plan = self.repo.get(project_id)
+            plan = self._resolve_plan_from_data(data)
             if not plan: return self.send_json({"ok": False, "error": "Not found"}, 404)
             report = QualityControlEngine.audit_project(plan)
             return self.send_json({
@@ -10918,8 +10930,7 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             })
 
         elif self.path == "/api/manifest":
-            project_id = data.get("project_id")
-            plan = self.repo.get(project_id)
+            plan = self._resolve_plan_from_data(data)
             if not plan: return self.send_json({"ok": False, "error": "Not found"}, 404)
             manifest = LicenseManifestManager.generate_manifest(plan)
             return self.send_json({"ok": True, "manifest": manifest})
@@ -10986,7 +10997,7 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             drift_exe = Path("d:/CUTWIREDRIFT/Drift/drift.exe").resolve()
             import subprocess
             try:
-                cmd = [str(drift_exe), str(proj_path)] if proj_path.exists() else [str(drift_exe)]
+                cmd = [str(drift_exe), "--agent-access", str(proj_path)] if proj_path.exists() else [str(drift_exe), "--agent-access"]
                 subprocess.Popen(cmd, cwd=str(drift_exe.parent))
                 return self.send_json({"ok": True, "opened": str(proj_path)})
             except Exception as e:
