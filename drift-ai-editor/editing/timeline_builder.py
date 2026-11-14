@@ -91,59 +91,72 @@ class TimelineBuilder:
         if video_track_idx is None:
             video_track_idx = 0
 
-        # Step 4: Place clips
+        # Step 4: Place clips (omitting explicit track so Drift natively directs to the right audio/video lane)
         placed_ops: List[Dict[str, Any]] = []
         for scene in plan.scenes:
             # Place narration audio
-            if scene.audio_path:
+            if scene.audio_path and os.path.exists(scene.audio_path):
                 audio_name = Path(scene.audio_path).name
-                asset_id = imported_assets.get(audio_name)
+                asset_id = imported_assets.get(audio_name) or imported_assets.get(str(Path(scene.audio_path).resolve()))
                 if asset_id:
                     placed_ops.append({
                         "tool": "place_clip",
                         "args": {
                             "asset": asset_id,
-                            "at": scene.start_time,
-                            "track": audio_track_idx
+                            "at": scene.start_time
                         }
                     })
 
             # Place video clip
             if scene.selected_media and scene.selected_media.local_cached_path:
-                vid_name = Path(scene.selected_media.local_cached_path).name
-                asset_id = imported_assets.get(vid_name)
-                if asset_id:
-                    placed_ops.append({
-                        "tool": "place_clip",
-                        "args": {
-                            "asset": asset_id,
-                            "at": scene.start_time,
-                            "track": video_track_idx
-                        }
-                    })
+                loc = scene.selected_media.local_cached_path
+                if os.path.exists(loc):
+                    vid_name = Path(loc).name
+                    asset_id = imported_assets.get(vid_name) or imported_assets.get(str(Path(loc).resolve()))
+                    if asset_id:
+                        placed_ops.append({
+                            "tool": "place_clip",
+                            "args": {
+                                "asset": asset_id,
+                                "at": scene.start_time
+                            }
+                        })
 
         # Apply placements
-        video_clip_count = 0
         if placed_ops:
             place_res = self.client.apply(placed_ops)
-            done_list = place_res.get("done", [])
-            for idx, op in enumerate(placed_ops):
-                if idx < len(done_list):
-                    res_val = done_list[idx].get("result", {})
-                    clip_uuid = res_val.get("clip")
-                    # If this was a visual video track clip
-                    if op["args"].get("track") == video_track_idx and clip_uuid:
+
+        # Inspect placed clips to apply volume silencing, Ken Burns and transitions
+        ins_after = self.client.inspect(clips=True)
+        all_tracks = ins_after.get("tracks", [])
+        video_track_idx = None
+        audio_track_idx = None
+        for t in all_tracks:
+            if t.get("type") == "video" and video_track_idx is None:
+                video_track_idx = t.get("i", 0)
+            elif t.get("type") == "audio" and audio_track_idx is None:
+                audio_track_idx = t.get("i", 1)
+
+        video_clip_count = 0
+        for tr in all_tracks:
+            if tr.get("type") == "video":
+                for item in tr.get("items", []):
+                    clip_uuid = item.get("id") or item.get("clip")
+                    if clip_uuid:
                         video_clip_count += 1
                         # 1. Silence native audio of stock footage
-                        self.client.apply([{
-                            "tool": "set_volume",
-                            "args": {"clip": clip_uuid, "volume": 0.0}
-                        }])
+                        try:
+                            self.client.apply([{
+                                "tool": "set_volume",
+                                "args": {"clip": clip_uuid, "volume": 0.0}
+                            }])
+                        except Exception:
+                            pass
 
                         # 2. Ken Burns Motion for static images
                         if plan.config.enable_ken_burns:
-                            # Find matching scene
-                            matched_scene = next((s for s in plan.scenes if s.start_time == op["args"].get("at")), None)
+                            item_start = item.get("start", 0.0)
+                            matched_scene = next((s for s in plan.scenes if abs(s.start_time - item_start) < 0.5), None)
                             if matched_scene and matched_scene.selected_media:
                                 is_img = (
                                     matched_scene.selected_media.media_type == "image" or
@@ -151,15 +164,18 @@ class TimelineBuilder:
                                      matched_scene.selected_media.local_cached_path.lower().endswith((".jpg", ".jpeg", ".png", ".webp")))
                                 )
                                 if is_img:
-                                    self.client.apply([{
-                                        "tool": "set_animation",
-                                        "args": {
-                                            "clip": clip_uuid,
-                                            "which": "animIn",
-                                            "kind": "zoomIn",
-                                            "duration": max(2.0, matched_scene.duration)
-                                        }
-                                    }])
+                                    try:
+                                        self.client.apply([{
+                                            "tool": "set_animation",
+                                            "args": {
+                                                "clip": clip_uuid,
+                                                "which": "animIn",
+                                                "kind": "zoomIn",
+                                                "duration": max(2.0, matched_scene.duration)
+                                            }
+                                        }])
+                                    except Exception:
+                                        pass
 
         # Step 5: Cinematographic Transitions between scenes
         if plan.config.transition_kind and plan.config.transition_kind != "none" and video_clip_count > 1:
