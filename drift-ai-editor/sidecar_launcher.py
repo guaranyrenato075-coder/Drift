@@ -44,7 +44,12 @@ def start_ai_engine_daemon() -> subprocess.Popen:
 def main():
     ai_process = start_ai_engine_daemon()
 
-    drift_args = [str(DRIFT_EXE)] + sys.argv[1:]
+    user_args = [a for a in sys.argv[1:] if a != "--agent-access"]
+    if not user_args:
+        default_proj = BASE_DIR / "Foco_Inabalável.drift"
+        if default_proj.exists():
+            user_args = [str(default_proj)]
+    drift_args = [str(DRIFT_EXE), "--agent-access"] + user_args
     if not DRIFT_EXE.exists():
         print(f"Executável do Drift não encontrado em: {DRIFT_EXE}")
         if ai_process:
