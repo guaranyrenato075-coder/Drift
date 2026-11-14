@@ -85,6 +85,7 @@ class DriftMcpClient:
         self.http_mode = False
         self.process = subprocess.Popen(
             [str(self.drift_exe), "--headless", "--isolated-session", "--mcp-stdio"],
+            cwd=str(self.drift_exe.parent),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
