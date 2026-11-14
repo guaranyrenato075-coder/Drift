@@ -8944,6 +8944,12 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"ok": True, "skills": self.skill_bridge.list_skills()}).encode("utf-8"))
+        elif self.path.startswith("/api/styles"):
+            styles = [
+                {"id": p.id, "name": p.name, "description": p.description, "transition": p.transition_type, "pacing": p.pacing_multiplier}
+                for p in StyleEngine.PROFILES.values()
+            ]
+            self.send_json({"ok": True, "styles": styles})
         elif self.path.startswith("/api/copyright_audit"):
             import urllib.parse
             parsed = urllib.parse.urlparse(self.path)
