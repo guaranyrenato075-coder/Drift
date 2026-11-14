@@ -145,6 +145,7 @@ private:
                         qint64 assetSize);
     void clearRelease();
     void finishCheck(const QString &version, bool manual);
+    void fetchFeedDirectly(bool manual);
     void announceIfNeeded();
     void setChecking(bool checking);
     void setDownloading(bool downloading);

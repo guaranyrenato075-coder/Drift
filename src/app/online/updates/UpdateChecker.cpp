@@ -432,6 +432,60 @@ void UpdateChecker::markAnnounced()
     QSettings().setValue(settingsKey("announcedVersion"), m_announcedVersion);
 }
 
+void UpdateChecker::fetchFeedDirectly(bool manual)
+{
+    if (kFeedUrl.isEmpty()) {
+        setChecking(false);
+        return;
+    }
+
+    QNetworkRequest request{QUrl(kFeedUrl)};
+    request.setHeader(QNetworkRequest::UserAgentHeader,
+                      QLatin1String("Drift/") + kCurrentVersion);
+    request.setRawHeader("Accept", "application/vnd.github+json");
+    request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setTransferTimeout(kTransferTimeoutMs);
+
+    QNetworkReply *reply = m_network->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, manual] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            if (manual)
+                setStatus(tr("Couldn’t check for updates: %1").arg(reply->errorString()));
+            setChecking(false);
+            return;
+        }
+
+        const QByteArray json = reply->readAll();
+        const QJsonObject release = QJsonDocument::fromJson(json).object();
+        const QString tag = release.value(QStringLiteral("tag_name")).toString();
+        const QString version = tag.startsWith(QLatin1Char('v')) ? tag.mid(1) : tag;
+
+        if (version.isEmpty()) {
+            if (manual)
+                setStatus(tr("Couldn’t check for updates: unexpected response."));
+            setChecking(false);
+            return;
+        }
+
+        QSettings().setValue(settingsKey("lastCheck"), QDateTime::currentDateTimeUtc());
+        if (drift::compareVersions(kCurrentVersion, version) >= 0) {
+            clearRelease();
+            if (manual)
+                setStatus(tr("Drift %1 is the latest version.").arg(kCurrentVersion));
+            setChecking(false);
+            return;
+        }
+
+        if (!applyRelease(json, manual, version))
+            publishFromVersion(version, manual);
+        else
+            finishCheck(version, manual);
+    });
+}
+
 void UpdateChecker::check(bool manual)
 {
     if (m_checking || m_downloading || m_preparing || !supported())
@@ -442,15 +496,20 @@ void UpdateChecker::check(bool manual)
         setStatus(QString());
     setError(QString());
 
+    if (!kFeedUrl.isEmpty()) {
+        fetchFeedDirectly(manual);
+        return;
+    }
+
     auto *dns = new QDnsLookup(QDnsLookup::TXT, kVersionHost, this);
     connect(dns, &QDnsLookup::finished, this, [this, dns, manual] {
         dns->deleteLater();
 
         if (dns->error() != QDnsLookup::NoError) {
-            // A background check that failed says nothing: being offline is not an error the user
-            // asked about. Only record the attempt when the record was actually read, so a laptop
-            // that launches offline all week still checks the day it has a connection.
-            // Status is published before checking goes false, so a manual check's toast sees it.
+            if (!kFeedUrl.isEmpty()) {
+                fetchFeedDirectly(manual);
+                return;
+            }
             if (manual)
                 setStatus(tr("Couldn’t check for updates: %1").arg(dns->errorString()));
             else
