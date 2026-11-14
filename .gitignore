@@ -5,8 +5,12 @@ build-*/
 *.user.*
 CMakeLists.txt.user
 
-# Editors
-.vscode/
+# Private local agent customizations
+.agents/skills/steve/
+.agents/skills/steve*
+*.private*
+drift-ai-editor/temp/
+drift-gateway/dist/
 .idea/
 *.swp
 /icons/
