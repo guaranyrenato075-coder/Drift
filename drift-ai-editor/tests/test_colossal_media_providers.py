@@ -1,8 +1,9 @@
 """
-Unit tests for colossal 75-provider milestone in CutWire Drift AI:
+Unit tests for colossal 76-provider milestone in CutWire Drift AI:
 Harvard Art Museums, American Archive of Public Broadcasting (AAPB),
-Museum of New Zealand Te Papa Tongarewa, Minneapolis Institute of Art (Mia), and Barnimages.
-Validates the milestone expansion to 75 global providers.
+Museum of New Zealand Te Papa Tongarewa, Minneapolis Institute of Art (Mia),
+Barnimages, and Picryl / GetArchive.
+Validates the milestone expansion to 76 global providers.
 """
 import unittest
 from providers.harvard_art import HarvardArtProvider
@@ -10,6 +11,7 @@ from providers.aapb import AapbProvider
 from providers.te_papa import TePapaProvider
 from providers.mia import MiaProvider
 from providers.barnimages import BarnimagesProvider
+from providers.picryl import PicrylProvider
 from providers.base import BaseMediaProvider
 from core.lazy_provider_registry import LazyProviderRegistry
 
@@ -21,9 +23,10 @@ class TestColossalMediaProviders(unittest.TestCase):
             AapbProvider(),
             TePapaProvider(),
             MiaProvider(),
-            BarnimagesProvider()
+            BarnimagesProvider(),
+            PicrylProvider()
         ]
-        expected_names = {"harvard_art", "aapb", "te_papa", "mia", "barnimages"}
+        expected_names = {"harvard_art", "aapb", "te_papa", "mia", "barnimages", "picryl"}
         for p in providers:
             self.assertIsInstance(p, BaseMediaProvider)
             self.assertIn(p.name, expected_names)
@@ -81,12 +84,23 @@ class TestColossalMediaProviders(unittest.TestCase):
         self.assertEqual(item.copyright_risk, "safe")
         self.assertTrue(item.commercial_use)
 
-    def test_lazy_registry_75_providers_resolution(self):
+    def test_picryl_public_domain_search(self):
+        p = PicrylProvider()
+        res = p.search("vintage astronomy telescope cosmos", per_page=3)
+        self.assertGreaterEqual(len(res), 1)
+        item = res[0]
+        self.assertEqual(item.platform, "picryl")
+        self.assertEqual(item.media_type, "image")
+        self.assertIn("Public Domain", item.license)
+        self.assertEqual(item.copyright_risk, "safe")
+        self.assertTrue(item.commercial_use)
+
+    def test_lazy_registry_76_providers_resolution(self):
         avail = LazyProviderRegistry.available_providers()
-        self.assertEqual(len(avail), 75, f"Expected 75 available providers in registry, found {len(avail)}")
+        self.assertEqual(len(avail), 76, f"Expected 76 available providers in registry, found {len(avail)}")
         for name in [
             "harvard_art", "aapb", "te_papa",
-            "mia", "barnimages"
+            "mia", "barnimages", "picryl"
         ]:
             self.assertIn(name, avail)
             inst = LazyProviderRegistry.get_provider(name)

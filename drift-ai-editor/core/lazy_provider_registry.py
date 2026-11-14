@@ -84,6 +84,7 @@ PROVIDER_CATALOG: Dict[str, tuple[str, str]] = {
     "te_papa": ("providers.te_papa", "TePapaProvider"),
     "mia": ("providers.mia", "MiaProvider"),
     "barnimages": ("providers.barnimages", "BarnimagesProvider"),
+    "picryl": ("providers.picryl", "PicrylProvider"),
 }
 
 class LazyProviderRegistry:

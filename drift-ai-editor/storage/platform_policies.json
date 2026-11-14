@@ -1,6 +1,6 @@
 {
   "version": "2026.11.0",
-  "last_updated": "2026-11-09T14:40:00Z",
+  "last_updated": "2026-11-13T21:14:05Z",
   "update_interval_hours": 24,
   "platforms": {
     "youtube": {
@@ -10,8 +10,13 @@
         "profanity_rule": "Nenhum palavrão nos primeiros 7 segundos para monetização verde integral.",
         "advertiser_friendly_score_min": 75,
         "restricted_topics": [
-          "armas caseiras", "drogas ilícitas", "terrorismo", "discurso de ódio",
-          "desinformação médica grave", "fraude financeira", "hackeamento de contas"
+          "armas caseiras",
+          "drogas ilícitas",
+          "terrorismo",
+          "discurso de ódio",
+          "desinformação médica grave",
+          "fraude financeira",
+          "hackeamento de contas"
         ],
         "reused_content_policy": "Obrigatoriedade de agregação substancial de valor: narração autoral, edição ritmada e B-Roll dinâmico."
       },
@@ -41,9 +46,15 @@
       "name": "TikTok",
       "community_guidelines": {
         "shadowban_risk_words": [
-          "compre seguidores", "ganhe dinheiro rapido", "esquema de piramide",
-          "apostas garantidas", "hackear", "remédio milagroso", "fraude",
-          "renda passiva facil", "compre aqui link"
+          "compre seguidores",
+          "ganhe dinheiro rapido",
+          "esquema de piramide",
+          "apostas garantidas",
+          "hackear",
+          "remédio milagroso",
+          "fraude",
+          "renda passiva facil",
+          "compre aqui link"
         ],
         "engagement_bait_penalized": true
       },
@@ -71,11 +82,18 @@
       "name": "Instagram / Meta Reels",
       "algorithm_guidelines": {
         "prohibited_watermarks": [
-          "tiktok", "bytedance", "kuaishou", "kwai", "capcut", "marca d'água concorrente"
+          "tiktok",
+          "bytedance",
+          "kuaishou",
+          "kwai",
+          "capcut",
+          "marca d'água concorrente"
         ],
         "watermark_penalty_description": "O algoritmo do Instagram Reels reduz em até 90% o alcance orgânico de vídeos que contenham marcas d'água de outros apps.",
         "engagement_bait_words": [
-          "comente 'EU QUERO'", "siga para não ter azar", "compartilhe com 10 amigos",
+          "comente 'EU QUERO'",
+          "siga para não ter azar",
+          "compartilhe com 10 amigos",
           "salve para não perder"
         ]
       },
@@ -97,5 +115,6 @@
         "target_lufs": -14.0
       }
     }
-  }
+  },
+  "last_sync_timestamp": 1794604445.5702798
 }

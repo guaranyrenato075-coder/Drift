@@ -8950,6 +8950,9 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 for p in StyleEngine.PROFILES.values()
             ]
             self.send_json({"ok": True, "styles": styles})
+        elif self.path.startswith("/api/providers"):
+            provs = LazyProviderRegistry.available_providers()
+            self.send_json({"ok": True, "count": len(provs), "providers": provs})
         elif self.path.startswith("/api/copyright_audit"):
             import urllib.parse
             parsed = urllib.parse.urlparse(self.path)
