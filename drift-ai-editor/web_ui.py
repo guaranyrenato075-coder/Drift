@@ -1,11 +1,12 @@
+import os
+import sys
+import ssl
 import http.server
 import socketserver
 import json
 import urllib.parse
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-import sys
-import ssl
 
 # Ensure SSL validation resilience across all external media providers on Windows
 try:
@@ -20,6 +21,13 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# Ensure local ffmpeg and binaries are immediately discoverable on PATH
+_editor_dir = str(Path(__file__).resolve().parent)
+_drift_dir = str(Path(__file__).resolve().parent.parent / "Drift")
+_cur_path = os.environ.get("PATH", "")
+if _editor_dir not in _cur_path:
+    os.environ["PATH"] = f"{_editor_dir};{_drift_dir};{_cur_path}"
 
 from storage.repository import ProjectRepository
 from models.scene_plan import ProjectPlan, ProjectConfig, Scene, SceneState
