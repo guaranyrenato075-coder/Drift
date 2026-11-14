@@ -242,14 +242,20 @@ class TimelineBuilder:
         for s in plan.scenes:
             s.state = SceneState.PLACED
 
-        # Step 8: Save native .drift project bundle
+        # Step 8: Save native .drift project bundle and snapshot
         safe_title = "".join(c for c in plan.title if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
         drift_proj_path = str((Path("d:/CUTWIREDRIFT") / f"{safe_title or 'projeto_drift'}.drift").resolve())
         try:
-            self.client.apply([{
-                "tool": "save_project",
-                "args": {"path": drift_proj_path}
+            snap_res = self.client.apply([{
+                "tool": "take_snapshot",
+                "args": {"label": safe_title}
             }])
+            done_snap = snap_res.get("done", [])
+            if done_snap and "result" in done_snap[0]:
+                snap_path = done_snap[0]["result"].get("path")
+                if snap_path and os.path.exists(snap_path):
+                    import shutil
+                    shutil.copy2(snap_path, drift_proj_path)
         except Exception:
             pass
 
