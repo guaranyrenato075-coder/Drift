@@ -75,34 +75,44 @@ class DriftMcpClient:
             self.http_url = f"http://127.0.0.1:{port}/mcp"
             return {"active_gui": True, "port": port}
 
-        # 2. Fall back to headless subprocess
+        # 2. Fall back to headless subprocess (with automatic retry for lock release)
         if self.process and self.process.poll() is None:
             return
 
         if not self.drift_exe.exists():
             raise FileNotFoundError(f"Drift executable not found at {self.drift_exe}")
 
-        self.http_mode = False
-        self.process = subprocess.Popen(
-            [str(self.drift_exe), "--headless", "--isolated-session", "--mcp-stdio"],
-            cwd=str(self.drift_exe.parent),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1
-        )
+        last_err = None
+        for attempt in range(2):
+            try:
+                self.http_mode = False
+                self.process = subprocess.Popen(
+                    [str(self.drift_exe), "--headless", "--isolated-session", "--mcp-stdio"],
+                    cwd=str(self.drift_exe.parent),
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1
+                )
 
-        # MCP handshake: initialize
-        init_res = self._send_request("initialize", {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {},
-            "clientInfo": {"name": "drift-ai-editor", "version": "1.0.0"}
-        })
+                # MCP handshake: initialize
+                init_res = self._send_request("initialize", {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "drift-ai-editor", "version": "1.0.0"}
+                })
 
-        # Send notifications/initialized
-        self._send_notification("notifications/initialized", {})
-        return init_res
+                # Send notifications/initialized
+                self._send_notification("notifications/initialized", {})
+                return init_res
+            except Exception as e:
+                last_err = e
+                self.stop()
+                if attempt == 0:
+                    time.sleep(0.6)
+        if last_err:
+            raise last_err
 
     def stop(self):
         """Terminates headless Drift process (leaves running GUI intact)."""
@@ -171,8 +181,9 @@ class DriftMcpClient:
 
         line = self.process.stdout.readline()
         if not line:
+            return_code = self.process.poll()
             stderr_out = self.process.stderr.read() if self.process.stderr else ""
-            raise RuntimeError(f"Drift process closed pipe unexpectedly. Stderr: {stderr_out}")
+            raise RuntimeError(f"Drift process closed pipe unexpectedly (exit code: {return_code}). Stderr: {stderr_out}")
 
         res = json.loads(line)
         if "error" in res:
