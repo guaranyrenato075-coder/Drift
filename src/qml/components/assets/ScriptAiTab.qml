@@ -464,6 +464,45 @@ Item {
                 }
             }
 
+            Row {
+                width: parent.width
+                spacing: Theme.spacingSm
+
+                ThemedButton {
+                    width: (parent.width - Theme.spacingSm) / 2
+                    text: qsTr("🚀 5. Exportar GPU")
+                    variant: "secondary"
+                    enabled: !root.isBusy
+                    onClicked: {
+                        root.statusMessage = qsTr("Iniciando exportação com aceleração GPU (NVENC)...")
+                        root.sendAiRequest("export_gpu", { project_id: root.currentProjectId }, function(ok, res) {
+                            if (ok) {
+                                root.statusMessage = qsTr("Exportação GPU concluída! Salvo em: ") + (res.output_path || "Pasta do Projeto")
+                            } else {
+                                root.statusMessage = qsTr("Exportação GPU: ") + (res.error || "Em andamento ou consulte log")
+                            }
+                        })
+                    }
+                }
+
+                ThemedButton {
+                    width: (parent.width - Theme.spacingSm) / 2
+                    text: qsTr("🔍 6. Auto-Relink Mídias")
+                    variant: "secondary"
+                    enabled: !root.isBusy
+                    onClicked: {
+                        root.statusMessage = qsTr("Escaneando e reparando mídias offline...")
+                        root.sendAiRequest("relink_media", { project_id: root.currentProjectId }, function(ok, res) {
+                            if (ok) {
+                                root.statusMessage = qsTr("Relink OK! %1 arquivos reconectados. Timeline atualizada.").arg(res.relinked_count || 0)
+                            } else {
+                                root.statusMessage = qsTr("Relink: ") + (res.error || "Nenhum arquivo offline detectado.")
+                            }
+                        })
+                    }
+                }
+            }
+
             // Status feedback banner
             Rectangle {
                 width: parent.width

@@ -811,6 +811,8 @@ QJsonObject McpDispatcher::applyOneUnchecked(const QString &tool, const QJsonObj
         return opSetMetadata(args);
     if (tool == QLatin1String("save_project"))
         return opSaveProject(args);
+    if (tool == QLatin1String("load_project"))
+        return opLoadProject(args);
     if (tool == QLatin1String("quit_instance"))
         return opQuitInstance(args);
     if (tool == QLatin1String("list_export_options"))
@@ -1844,6 +1846,19 @@ QJsonObject McpDispatcher::opSaveProject(const QJsonObject &args)
     else
         m_controller->projectFile()->saveProject(QUrl::fromLocalFile(path));
     return ok({{QStringLiteral("path"), path}});
+}
+
+QJsonObject McpDispatcher::opLoadProject(const QJsonObject &args)
+{
+    const QString path = args.value(QStringLiteral("path")).toString();
+    if (path.isEmpty())
+        return err("bad_args", QStringLiteral("path is required"));
+    QFileInfo info(path);
+    if (!info.exists())
+        return err("not_found", QStringLiteral("Project file does not exist at requested path"));
+
+    m_controller->projectFile()->loadProject(QUrl::fromLocalFile(info.absoluteFilePath()));
+    return ok({{QStringLiteral("loaded"), true}, {QStringLiteral("path"), info.absoluteFilePath()}});
 }
 
 QJsonObject McpDispatcher::opQuitInstance(const QJsonObject &args)

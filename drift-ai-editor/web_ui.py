@@ -11346,6 +11346,57 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/api/system/ram/trim":
             trim_data = RamWorkingSetTrimmer.trim_working_set()
             return self.send_json({"ok": True, "trim": trim_data})
+        elif self.path == "/api/export_gpu":
+            proj_id = data.get("project_id")
+            root_dir = Path("D:/CUTWIREDRIFT")
+            export_script = root_dir / "scripts" / "export_documentary_gpu.py"
+            if not export_script.exists():
+                return self.send_json({"ok": False, "error": "Script export_documentary_gpu.py não encontrado"}, 404)
+            try:
+                proc = subprocess.run([sys.executable, str(export_script)], capture_output=True, text=True, timeout=60)
+                out_path = str(root_dir / "Hecate_O_Outro_Mito_Documentario_Final.mp4")
+                return self.send_json({"ok": proc.returncode == 0, "output_path": out_path, "stdout": proc.stdout[:500]})
+            except Exception as e:
+                return self.send_json({"ok": False, "error": str(e)}, 500)
+        elif self.path == "/api/relink_media":
+            proj_id = data.get("project_id")
+            root_dir = Path("D:/CUTWIREDRIFT")
+            candidate_dirs = [
+                root_dir / "ancient_greek_statues",
+                root_dir / "media_cache",
+                root_dir / "elevenlabs_audio",
+                root_dir / "soundtracks",
+                root_dir / "foley_assets",
+                root_dir / "storage"
+            ]
+            relinked = 0
+            drift_file = root_dir / "Hecate_O_Outro_Mito.drift"
+            if drift_file.exists():
+                try:
+                    with open(drift_file, "r", encoding="utf-8") as f:
+                        dproj = json.load(f)
+                    changed = False
+                    for asset in dproj.get("assets", []):
+                        p = asset.get("path", "")
+                        if p and not os.path.exists(p):
+                            fname = Path(p).name
+                            for cdir in candidate_dirs:
+                                found = list(cdir.rglob(fname))
+                                if found:
+                                    asset["path"] = str(found[0]).replace("\\", "/")
+                                    relinked += 1
+                                    changed = True
+                                    break
+                    if changed:
+                        with open(drift_file, "w", encoding="utf-8") as f:
+                            json.dump(dproj, f, indent=2, ensure_ascii=False)
+                    mcp_port = data.get("mcp_port", 0)
+                    if mcp_port:
+                        client = DriftMcpClient(port=mcp_port)
+                        client.apply([{"tool": "load_project", "args": {"path": str(drift_file)}}])
+                except Exception as e:
+                    return self.send_json({"ok": False, "error": str(e)}, 500)
+            return self.send_json({"ok": True, "relinked_count": relinked, "project_path": str(drift_file)})
         else:
             self.send_response(404)
             self.end_headers()

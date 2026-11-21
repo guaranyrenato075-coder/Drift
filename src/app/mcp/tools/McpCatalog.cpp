@@ -888,6 +888,12 @@ const QList<Op> &ops()
                          stringProp(QStringLiteral("Absolute .drift path; omit to save to the current path"))},
                         {QStringLiteral("saveAs"),
                          boolProp(QStringLiteral("Save a duplicate at path and keep editing it"))}}) },
+        { "load_project", "project", "Open and load a .drift project file",
+          "Replaces the open project with the .drift project file at path. Fails bad_args when path is omitted "
+          "and not_found when the file does not exist on disk.",
+          objectSchema({{QStringLiteral("path"),
+                         stringProp(QStringLiteral("Absolute path to the .drift file to load"))}},
+                       {QStringLiteral("path")}) },
         { "list_export_options", "project", "See codecs, scales, and fps choices",
           "Returns {scales:[{id,w,h}], fps:[{id}], video:[{id,label}], audio:[{id,label}], gif, folder} "
           "— only codecs available on this machine are listed. Does not list rate or preset values; "
@@ -1190,7 +1196,8 @@ QStringList undoExemptOps()
         QStringLiteral("set_overlap"),         QStringLiteral("set_ripple"),
         QStringLiteral("set_snap"),            QStringLiteral("set_loop_work_area"),
         QStringLiteral("export_video"),
-        QStringLiteral("save_project"),        QStringLiteral("quit_instance"),
+        QStringLiteral("save_project"),        QStringLiteral("load_project"),
+        QStringLiteral("quit_instance"),
         QStringLiteral("set_theme"),        QStringLiteral("set_preview_view"),
         QStringLiteral("set_shortcut"),        QStringLiteral("reset_shortcuts"),
         QStringLiteral("export_theme"),        QStringLiteral("import_theme"),
