@@ -12,7 +12,7 @@ class DriftMcpClient:
     Launches and communicates with Drift in headless mode.
     """
 
-    def __init__(self, drift_exe_path: Optional[str] = None):
+    def __init__(self, drift_exe_path: Optional[str] = None, port: Optional[int] = None, token: Optional[str] = None):
         if drift_exe_path:
             self.drift_exe = Path(drift_exe_path)
         else:
@@ -22,41 +22,52 @@ class DriftMcpClient:
 
         self.process: Optional[subprocess.Popen] = None
         self._req_id = 1
+        self.explicit_port = port
+        self.explicit_token = token
         self.http_mode = False
         self.http_url = ""
         self.http_token = ""
 
     def _find_running_gui_session(self) -> Optional[Dict[str, Any]]:
-        """Scans for an active Drift GUI editor instance with MCP enabled."""
+        """Scans for an active Drift GUI editor instance with MCP enabled, newest first."""
         import glob
         import urllib.request
         temp_candidates = [
+            str(Path.home()),
+            str(Path.home() / "AppData" / "Local"),
+            str(Path.home() / "AppData" / "Roaming"),
             os.environ.get("TEMP", ""),
             os.environ.get("TMP", ""),
             str(Path.home() / "AppData" / "Local" / "Temp")
         ]
+        all_files = []
         seen = set()
         for base in temp_candidates:
             if not base or not os.path.isdir(base):
                 continue
             pattern = os.path.join(base, "drift", "mcp-sessions", "*.json")
             for sf in glob.glob(pattern):
-                if sf in seen:
-                    continue
-                seen.add(sf)
-                try:
-                    with open(sf, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    port = data.get("port")
-                    token = data.get("token")
-                    if port and token:
-                        health_url = f"http://127.0.0.1:{port}/health"
-                        req = urllib.request.Request(health_url)
-                        with urllib.request.urlopen(req, timeout=1.0) as resp:
-                            if resp.status == 200:
-                                return data
-                except Exception:
-                    pass
+                if sf not in seen and os.path.isfile(sf):
+                    seen.add(sf)
+                    all_files.append((os.path.getmtime(sf), sf))
+
+        # Sort newest session file first!
+        all_files.sort(key=lambda x: x[0], reverse=True)
+
+        for _, sf in all_files:
+            try:
+                with open(sf, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                port = data.get("port")
+                token = data.get("token")
+                if port and token:
+                    health_url = f"http://127.0.0.1:{port}/health"
+                    req = urllib.request.Request(health_url)
+                    with urllib.request.urlopen(req, timeout=1.0) as resp:
+                        if resp.status == 200:
+                            return data
+            except Exception:
+                pass
         return None
 
     def start(self):
@@ -66,7 +77,14 @@ class DriftMcpClient:
         so that clip insertions appear live on screen in the active timeline!
         Falls back to starting a headless instance if no GUI is running.
         """
-        # 1. Try to attach to the active graphical window
+        # 1. Connect directly to explicit port/token if supplied by caller (e.g. from ScriptAiTab QML)
+        if self.explicit_port and self.explicit_token:
+            self.http_mode = True
+            self.http_token = self.explicit_token
+            self.http_url = f"http://127.0.0.1:{self.explicit_port}/mcp"
+            return {"active_gui": True, "port": self.explicit_port}
+
+        # 2. Try to attach to the most recently active graphical window
         gui_session = self._find_running_gui_session()
         if gui_session:
             self.http_mode = True

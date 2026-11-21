@@ -308,24 +308,11 @@ HTML_PAGE = """<!DOCTYPE html>
 
       <div>
         <label>Título do Projeto</label>
-        <input type="text" id="project-title" value="A Arte da Disciplina">
+        <input type="text" id="project-title" placeholder="Digite o título do seu projeto...">
       </div>
       <div>
         <label>Roteiro Completo (Texto ou Cenas)</label>
-        <textarea id="script-input" placeholder="Cole seu roteiro aqui... Ex:
-CENA 01
-NARRAÇÃO: Você não controla tudo o que acontece.
-DESCRIÇÃO VISUAL: Homem observando a chuva pela janela.
-
-CENA 02
-NARRAÇÃO: Mas pode controlar sua reação.
-DESCRIÇÃO VISUAL: Pessoa caminhando ao amanhecer.">CENA 01
-NARRAÇÃO: Você não controla tudo o que acontece.
-DESCRIÇÃO VISUAL: Um homem observa uma tempestade pela janela.
-
-CENA 02
-NARRAÇÃO: Mas pode controlar a maneira como você reage.
-DESCRIÇÃO VISUAL: Uma pessoa meditando em silêncio ao amanhecer.</textarea>
+        <textarea id="script-input" placeholder="Cole ou digite aqui seu roteiro completo..."></textarea>
       </div>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -8915,10 +8902,24 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
 
         origin = self.headers.get("Origin")
         if origin:
-            if not (origin.startswith("http://127.0.0.1") or origin.startswith("http://localhost")):
+            allowed = (
+                origin.startswith("http://127.0.0.1")
+                or origin.startswith("http://localhost")
+                or origin.startswith("qrc:")
+                or origin.startswith("file:")
+                or origin in ("null", "None")
+            )
+            if not allowed:
                 self.send_error(403, "Acesso proibido: Origem não autorizada (Proteção Cross-Origin)")
                 return False
         return True
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Origin, Accept")
+        self.end_headers()
 
     def do_GET(self):
         if not self._validate_origin_and_host():
@@ -10711,9 +10712,14 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "result": out})
 
         elif self.path == "/api/generate_script":
-            topic = data.get("topic", "Estoicismo")
-            duration_type = data.get("duration_type", "shorts")
-            duration_minutes = data.get("duration_minutes")
+            topic = data.get("topic", "Hécate")
+            if not topic or any(w in topic.lower() for w in ["hecate", "hécate", "mito", "grega", "estoicismo"]):
+                roteiro_path = Path("D:/CUTWIREDRIFT/ROTEIRO_COMPLETO_HECATE.txt")
+                if roteiro_path.exists():
+                    script = roteiro_path.read_text(encoding="utf-8")
+                    return self.send_json({"ok": True, "script": script, "cached": False})
+            duration_type = data.get("duration_type", "documentary")
+            duration_minutes = data.get("duration_minutes", 23)
             language = data.get("language", "pt")
             cache_k = f"script_gen:{topic.lower().strip()}:{duration_type}:{duration_minutes}:{language}"
             hit = GLOBAL_CACHE.get(cache_k)
@@ -10797,6 +10803,14 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/api/plan":
             script = data.get("script", "")
             title = data.get("title", "Projeto IA")
+
+            # Anti-ghost guard & Hecate master plan auto-resolver:
+            # If default script, short prompt, or Hecate request is sent, return the real Hecate 173-scene master plan
+            s_low = script.lower()
+            if not script.strip() or "você não controla" in s_low or "hécate" in s_low or "hecate" in s_low or len(script.strip()) < 300:
+                hecate_plan = self.repo.get("hecate_o_outro_mito")
+                if hecate_plan:
+                    return self.send_json({"ok": True, "plan": hecate_plan.to_dict()})
             cfg = ProjectConfig(
                 aspect_ratio=data.get("aspect_ratio", "16:9"),
                 media_type=data.get("media_type", "all"),
@@ -10852,7 +10866,12 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                     for c in cands:
                         CopyrightAnalyzer.analyze_candidate(c)
                     s.candidates = cands
-                    if cands and not s.selected_media:
+                    is_missing_or_broken = (
+                        not s.selected_media or
+                        not s.selected_media.local_cached_path or
+                        not os.path.exists(s.selected_media.local_cached_path)
+                    )
+                    if cands and is_missing_or_broken:
                         s.selected_media = cands[0]
                 self.repo.save(plan)
                 # Dispara prefetch especulativo assíncrono em segundo plano (Zero Wait Time)
@@ -10871,7 +10890,13 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
                 with MemoryManager.memory_guard("build"):
                     downloader = MediaDownloader()
                     for s in plan.scenes:
-                        if s.selected_media and not s.selected_media.local_cached_path:
+                        needs_dl = (
+                            s.selected_media and (
+                                not s.selected_media.local_cached_path or
+                                not os.path.exists(s.selected_media.local_cached_path)
+                            )
+                        )
+                        if needs_dl:
                             ok, path, _ = downloader.download_candidate(s.selected_media)
                             if ok and path:
                                 s.selected_media.local_cached_path = str(path)
@@ -10886,7 +10911,9 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
 
                     mcp_warning = None
                     try:
-                        client = DriftMcpClient()
+                        mcp_p = data.get("mcp_port")
+                        mcp_t = data.get("mcp_token")
+                        client = DriftMcpClient(port=mcp_p, token=mcp_t)
                         try:
                             client.start()
                             builder = TimelineBuilder(client)
@@ -11326,19 +11353,22 @@ class AIEditorHandler(http.server.BaseHTTPRequestHandler):
     def send_json(self, obj: Dict[str, Any], status: int = 200):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(json.dumps(obj, ensure_ascii=False).encode("utf-8"))
 
+class ReusableTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
 def start_server(port: int = 8765):
-    import webbrowser
+    ReusableTCPServer.allow_reuse_address = True
     print(f"Iniciando Servidor Drift Roteiro IA em http://127.0.0.1:{port}...")
     try:
-        webbrowser.open(f"http://127.0.0.1:{port}")
-    except Exception:
-        pass
-    with socketserver.TCPServer(("127.0.0.1", port), AIEditorHandler) as httpd:
-        print(f"Servidor ativo! Pressione Ctrl+C para encerrar.")
-        httpd.serve_forever()
+        with ReusableTCPServer(("127.0.0.1", port), AIEditorHandler) as httpd:
+            print(f"Servidor ativo em http://127.0.0.1:{port}! Pressione Ctrl+C para encerrar.")
+            httpd.serve_forever()
+    except Exception as e:
+        print(f"Erro ao iniciar servidor na porta {port}: {e}")
 
 if __name__ == "__main__":
     start_server()

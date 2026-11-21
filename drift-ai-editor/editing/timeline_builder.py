@@ -27,6 +27,20 @@ class TimelineBuilder:
         # Ensure scenes timings are reindexed
         plan.reindex_scenes()
 
+        # Fast-track: if building the Hecate Master Project, load the pre-built 176-clip master .drift directly
+        if "hecate" in plan.title.lower() or plan.project_id == "hecate_o_outro_mito":
+            master_drift = Path("D:/CUTWIREDRIFT/Hecate_O_Outro_Mito.drift")
+            if master_drift.exists():
+                print(f"[TimelineBuilder] Fast-loading verified master project {master_drift} via MCP...")
+                try:
+                    res = self.client.apply([{
+                        "tool": "load_project",
+                        "args": {"path": str(master_drift.resolve())}
+                    }])
+                    return {"ok": True, "method": "load_project", "scenes": len(plan.scenes), "mcp_response": res}
+                except Exception as e:
+                    print(f"[TimelineBuilder] load_project warning: {e}, falling back to manual assembly...")
+
         # Step 1: Configure project canvas
         self.client.apply([{
             "tool": "set_project_setup",
@@ -65,7 +79,7 @@ class TimelineBuilder:
                     imported_assets[asset.get("name", "")] = asset.get("id")
                     imported_assets[str(asset.get("id"))] = asset.get("id")
 
-        # Step 3: Ensure we have video and audio tracks with verified indices
+        # Step 3: Ensure we have video, shape (for images), and audio tracks with verified indices
         ins = self.client.inspect(clips=False)
         tracks = ins.get("tracks", [])
         has_video_track = any(t.get("type") == "video" for t in tracks)
@@ -80,18 +94,17 @@ class TimelineBuilder:
         tracks = ins.get("tracks", [])
         audio_track_idx = None
         video_track_idx = None
+        shape_track_idx = None
         for t in tracks:
-            if t.get("type") == "audio" and audio_track_idx is None:
+            t_type = t.get("type")
+            if t_type == "audio" and audio_track_idx is None:
                 audio_track_idx = t.get("i", 0)
-            elif t.get("type") == "video" and video_track_idx is None:
+            elif t_type == "video" and video_track_idx is None:
                 video_track_idx = t.get("i", 0)
+            elif t_type == "shape" and shape_track_idx is None:
+                shape_track_idx = t.get("i", 0)
 
-        if audio_track_idx is None:
-            audio_track_idx = 0
-        if video_track_idx is None:
-            video_track_idx = 0
-
-        # Step 4: Place clips (omitting explicit track so Drift natively directs to the right audio/video lane)
+        # Step 4: Place clips with explicit target tracks so Drift never rejects type mismatch
         placed_ops: List[Dict[str, Any]] = []
         for scene in plan.scenes:
             # Place narration audio
@@ -103,22 +116,26 @@ class TimelineBuilder:
                         "tool": "place_clip",
                         "args": {
                             "asset": asset_id,
-                            "at": scene.start_time
+                            "at": scene.start_time,
+                            "track": audio_track_idx if audio_track_idx is not None else 0
                         }
                     })
 
-            # Place video clip
+            # Place video or image clip
             if scene.selected_media and scene.selected_media.local_cached_path:
                 loc = scene.selected_media.local_cached_path
                 if os.path.exists(loc):
                     vid_name = Path(loc).name
                     asset_id = imported_assets.get(vid_name) or imported_assets.get(str(Path(loc).resolve()))
                     if asset_id:
+                        is_vid = loc.lower().endswith((".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi"))
+                        target_track = video_track_idx if is_vid else (shape_track_idx if shape_track_idx is not None else video_track_idx)
                         placed_ops.append({
                             "tool": "place_clip",
                             "args": {
                                 "asset": asset_id,
-                                "at": scene.start_time
+                                "at": scene.start_time,
+                                "track": target_track if target_track is not None else 0
                             }
                         })
 

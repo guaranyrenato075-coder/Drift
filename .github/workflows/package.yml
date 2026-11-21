@@ -221,7 +221,12 @@ jobs:
           dl="${RUNNER_TEMP}/driftpkg"
           mkdir -p "$dl"
           gh release download packages -R CutWire-Studios/Drift-Addons -D "$dl" \
-            -p deepfilternet.v3-1.0.0.driftpkg -p silero.vad-1.0.0.driftpkg -p onnxruntime.cpu.${{ matrix.target }}-1.0.0.driftpkg
+            -p deepfilternet.v3-1.0.0.driftpkg -p silero.vad-1.0.0.driftpkg -p onnxruntime.cpu.${{ matrix.target }}-1.0.0.driftpkg 2>/dev/null || {
+              echo "gh release download failed; falling back to direct curl download..."
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/deepfilternet.v3-1.0.0.driftpkg" -o "$dl/deepfilternet.v3-1.0.0.driftpkg"
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/silero.vad-1.0.0.driftpkg" -o "$dl/silero.vad-1.0.0.driftpkg"
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/onnxruntime.cpu.${{ matrix.target }}-1.0.0.driftpkg" -o "$dl/onnxruntime.cpu.${{ matrix.target }}-1.0.0.driftpkg"
+          }
           python3 scripts/unpack-driftpkg.py "$dl/deepfilternet.v3-1.0.0.driftpkg" "${GITHUB_WORKSPACE}"
           python3 scripts/unpack-driftpkg.py "$dl/silero.vad-1.0.0.driftpkg" "${GITHUB_WORKSPACE}/drift-addons/staging/silero-vad"
           python3 scripts/unpack-driftpkg.py "$dl/onnxruntime.cpu.${{ matrix.target }}-1.0.0.driftpkg" "${GITHUB_WORKSPACE}/.ort"
@@ -896,7 +901,7 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runner: macos-26
+            runner: macos-14
             skia_target: mac-arm64
             ort_pkg: onnxruntime.cpu.osx-arm64-1.0.0.driftpkg
             homebrew_qt: true
@@ -984,7 +989,12 @@ jobs:
           dl="${RUNNER_TEMP}/driftpkg"
           mkdir -p "$dl"
           gh release download packages -R CutWire-Studios/Drift-Addons -D "$dl" \
-            -p deepfilternet.v3-1.0.0.driftpkg -p silero.vad-1.0.0.driftpkg -p ${{ matrix.ort_pkg }}
+            -p deepfilternet.v3-1.0.0.driftpkg -p silero.vad-1.0.0.driftpkg -p ${{ matrix.ort_pkg }} 2>/dev/null || {
+              echo "gh release download failed; falling back to direct curl download..."
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/deepfilternet.v3-1.0.0.driftpkg" -o "$dl/deepfilternet.v3-1.0.0.driftpkg"
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/silero.vad-1.0.0.driftpkg" -o "$dl/silero.vad-1.0.0.driftpkg"
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/${{ matrix.ort_pkg }}" -o "$dl/${{ matrix.ort_pkg }}"
+          }
           python3 scripts/unpack-driftpkg.py "$dl/deepfilternet.v3-1.0.0.driftpkg" "${GITHUB_WORKSPACE}"
           python3 scripts/unpack-driftpkg.py "$dl/silero.vad-1.0.0.driftpkg" "${GITHUB_WORKSPACE}/drift-addons/staging/silero-vad"
           python3 scripts/unpack-driftpkg.py "$dl/${{ matrix.ort_pkg }}" "${GITHUB_WORKSPACE}/.ort"

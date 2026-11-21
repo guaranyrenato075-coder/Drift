@@ -15,6 +15,18 @@ class SmartProviderRouter:
     """
 
     THEMATIC_CLUSTERS: Dict[str, Dict[str, Any]] = {
+        "greek_mythology_classical_antiquity": {
+            "tokens": {"zeus", "hécate", "hecate", "olimpo", "olympus", "tártaro", "tartarus", "titã", "tita", "titan",
+                       "titãs", "titans", "hesíodo", "hesiodo", "teogonia", "theogony", "hades", "poseidon", "apolo", "apollo",
+                       "atenas", "athens", "acrópole", "acropole", "acropolis", "parthenon", "delfos", "delphi", "tocha", "torch",
+                       "tochas", "torches", "encruzilhada", "crossroads", "submundo", "underworld", "abismo", "abyss",
+                       "altar", "sacrifício", "sacrificio", "ritual", "arcaico", "archaic", "helenístico", "helenistico", "hellenistic",
+                       "pergaminho", "scroll", "papiro", "papyrus", "oráculo", "oracle", "deus", "deusa", "deuses", "god", "goddess",
+                       "mythological", "mitológico", "mitológica"},
+            "priority": ["wikimedia", "artvee", "met_museum", "cleveland_art", "artic", "rijksmuseum",
+                         "british_library", "walters_art", "nga", "yale", "videvo", "dareful", "videezy",
+                         "coverr", "openverse", "pexels", "pixabay"]
+        },
         "space_astronomy": {
             "tokens": {"space", "espaço", "universo", "galaxy", "galáxia", "estrela", "star", "planet", "planeta",
                        "terra", "earth", "moon", "lua", "mars", "marte", "nebula", "nebulosa", "cosmos", "astronaut",
@@ -25,9 +37,10 @@ class SmartProviderRouter:
             "tokens": {"filosofia", "philosophy", "estoico", "stoic", "sêneca", "marcus aurelius", "marco aurélio",
                        "epicteto", "epictetus", "roma", "rome", "grécia", "greece", "egypt", "egito", "renascença",
                        "renaissance", "medieval", "sculpture", "escultura", "museum", "museu", "painting", "pintura",
-                       "antiquity", "antiguidade", "emperor", "imperador", "gladiator", "gladiador", "knight", "cavaleiro"},
-            "priority": ["harvard_art", "met_museum", "walters_art", "nga", "yale", "artic", "mauritshuis",
-                         "british_library", "smk", "paris_musees", "mia", "old_book_illustrations", "cleveland_art"]
+                       "antiquity", "antiguidade", "emperor", "imperador", "gladiator", "gladiador", "knight", "cavaleiro",
+                       "foco", "focus", "disciplina", "discipline", "mindset", "hábito", "habit", "resiliência"},
+            "priority": ["videvo", "videezy", "dareful", "coverr", "wikimedia", "harvard_art", "met_museum",
+                         "walters_art", "nga", "yale", "artic", "mauritshuis", "british_library"]
         },
         "historical_documentary_archive": {
             "tokens": {"war", "guerra", "world war", "segunda guerra", "soldier", "soldado", "army", "exército",

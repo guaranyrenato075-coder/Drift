@@ -28,6 +28,43 @@ class VisualPlanner:
 
     # Common semantic mappings for stock footage queries
     SEMANTIC_THEMES = [
+        # --- Mitologia Grega, Antiguidade Clássica e Épicos Históricos ---
+        (re.compile(r'\b(zeus|raio|trovão|trovao|olimpo|deus|deuses|olímpico|olimpico|soberano|trono)\b', re.IGNORECASE),
+         "Estátua clássica de Zeus no monte Olimpo sob céu de tempestade e raios",
+         ["zeus", "olimpo", "estátua grega", "raios", "mitologia"],
+         ["zeus statue", "mount olympus storm", "ancient greece lightning", "classical greek sculpture", "temple of zeus", "greek mythology"]),
+
+        (re.compile(r'\b(hécate|hecate|deusa|tríplice|triplice|encruzilhada|tocha|tochas|chama|fogo na noite|mistério|misterio|magia)\b', re.IGNORECASE),
+         "Deusa Hécate em encruzilhada de pedra arcaica segurando tochas flamejantes na noite",
+         ["hécate", "tocha", "noite", "encruzilhada", "estátua"],
+         ["burning torch ancient ruins", "greek goddess statue torch", "ancient crossroads night", "torch flame dark night", "ancient stone temple night", "mystic ancient torch"]),
+
+        (re.compile(r'\b(tártaro|tartaro|abismo|submundo|profundezas|sombras|escuridão|escuridao|caverna|monstro|titã|titãs|tita|titas|correntes|cinzas|fumaça)\b', re.IGNORECASE),
+         "Abismo primordial do Tártaro e submundo mítico com névoa, fumaça vulcânica e rochas escuras",
+         ["tártaro", "submundo", "abismo", "cinzas", "profundezas"],
+         ["ancient dark underworld abyss", "volcanic fissure smoke dark", "ancient cavern fog", "underground stone crypt dark", "abyssal primordial cave", "dark volcanic rocks"]),
+
+        (re.compile(r'\b(hesíodo|hesiodo|teogonia|poeta|escritura|pergaminho|papiro|texto|antigo|filosofia|filósofo|filosofo|mito|mitologia|história|historia)\b', re.IGNORECASE),
+         "Pergaminhos antigos e papiros gregos iluminados por luz de vela em arquivo de pedra",
+         ["pergaminho", "papiro grego", "filosofia", "antiguidade"],
+         ["ancient greek manuscript", "ancient scroll candle", "greek marble bust", "ancient library scroll", "classical antique parchment", "ancient greek inscription"]),
+
+        (re.compile(r'\b(grécia|grecia|templo|ruína|ruina|ruínas|ruinas|acrópole|acropole|mármore|marmore|helenístico|helenistico|arcaico|parthenon|coluna|colunas)\b', re.IGNORECASE),
+         "Ruínas majestosas de templos gregos antigos e colunas de mármore clássicas sob luz dourada",
+         ["templo grego", "ruínas", "acrópole", "mármore", "parthenon"],
+         ["ancient greek temple columns", "acropolis athens ruins", "greek marble ruins", "delphi temple ancient greece", "ancient parthenon columns", "classical greek architecture"]),
+
+        (re.compile(r'\b(sacrifício|sacrificio|altar|oferenda|rito|ritual|sacerdote|culto|prece|adoração|adoracao)\b', re.IGNORECASE),
+         "Altar antigo de pedra com incenso e chamas rituais em santuário grego",
+         ["altar", "ritual", "templo", "incenso", "santuário"],
+         ["ancient stone altar smoke", "ancient temple incense flame", "greek sacrificial altar", "ancient ritual temple flame", "greek marble sanctuary"]),
+
+        (re.compile(r'\b(mar|egeu|mediterrâneo|mediterraneo|costa|ondas|litoral|rochas|promontório)\b', re.IGNORECASE),
+         "Costa rochosa do Mar Egeu com penhascos gregos e ondas dramáticas",
+         ["mar egeu", "costa grega", "penhasco", "ondas"],
+         ["aegean sea coast cliffs", "ancient greece coast sunset", "mediterranean rocky coast", "greek islands dramatic cliffs"]),
+
+        # --- Temas Gerais e Modernos ---
         (re.compile(r'\b(tempestade|chuva|tempo|vento|clima)\b', re.IGNORECASE), 
          "Pessoa observando tempestade pela janela", ["chuva", "tempestade", "janela"], ["rain", "storm", "window", "thunder"]),
         (re.compile(r'\b(controla|controle|reage|reação|mente|pensamento|pensar|medita)\b', re.IGNORECASE),
@@ -48,6 +85,21 @@ class VisualPlanner:
 
     # Portuguese to English keyword dictionary
     TRANSLATIONS = {
+        # Mitologia e Antiguidade
+        "zeus": "zeus statue", "hecate": "hecate goddess", "hécate": "hecate goddess",
+        "deus": "greek god statue", "deusa": "greek goddess statue", "deuses": "greek gods sculpture",
+        "olimpo": "mount olympus greece", "tártaro": "tartarus underworld abyss", "tartaro": "tartarus underworld abyss",
+        "submundo": "underworld dark cave", "abismo": "dark abyss", "tocha": "burning torch night",
+        "tochas": "burning torches ruins", "encruzilhada": "ancient crossroads night",
+        "templo": "ancient greek temple", "ruínas": "ancient greek ruins", "ruina": "ancient ruins",
+        "ruinas": "ancient ruins", "mármore": "classical greek marble", "marmore": "classical greek marble",
+        "estátua": "classical greek sculpture", "estatua": "classical greek sculpture",
+        "titã": "ancient titan myth", "titãs": "ancient titans myth", "tita": "ancient titan myth", "titas": "ancient titans myth",
+        "hesíodo": "ancient greek manuscript", "hesiodo": "ancient greek manuscript",
+        "pergaminho": "ancient scroll", "papiro": "ancient papyrus", "altar": "ancient stone altar",
+        "mitologia": "greek mythology", "mito": "greek myth", "grécia": "ancient greece", "grecia": "ancient greece",
+        "acrópole": "acropolis athens", "acropole": "acropolis athens", "parthenon": "parthenon athens",
+        # Termos gerais
         "homem": "man", "mulher": "woman", "pessoa": "person", "pessoas": "people",
         "caminhando": "walking", "olhando": "looking", "observando": "watching",
         "chuva": "rain", "tempestade": "storm", "janela": "window", "reflexão": "reflection",

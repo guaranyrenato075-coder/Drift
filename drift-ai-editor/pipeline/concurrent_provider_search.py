@@ -69,6 +69,19 @@ class ConcurrentProviderSearch:
         primary_query = keywords[0] if keywords else "cinematic"
         secondary_query = keywords[1] if len(keywords) > 1 else primary_query
 
+        # Thematic anchor: if scene belongs to Greek mythology / antiquity, anchor all generic queries
+        full_context = f"{scene.narration_text} {scene.visual_description}".lower()
+        is_mythology = any(w in full_context for w in [
+            "zeus", "hecate", "hécate", "olimpo", "olympus", "tártaro", "tartaro",
+            "titã", "tita", "titan", "mito", "mitologia", "myth", "grécia", "grecia",
+            "greek", "tocha", "ruína", "ruina", "ruínas", "templo", "hesíodo", "deus", "deusa"
+        ])
+        if is_mythology:
+            if not any(a in primary_query.lower() for a in ["greek", "greece", "ancient", "zeus", "hecate", "myth", "temple", "ruins", "statue"]):
+                primary_query = f"ancient greece {primary_query}".strip()
+            if not any(a in secondary_query.lower() for a in ["greek", "greece", "ancient", "zeus", "hecate", "myth", "temple", "ruins", "statue"]):
+                secondary_query = f"greek mythology {secondary_query}".strip()
+
         # Determine prioritized provider order based on scene theme
         ranked_providers = SmartProviderRouter.route_providers(
             keywords=keywords,

@@ -37,7 +37,7 @@ jobs:
   macos-icon:
     name: macOS adaptive icon
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-    runs-on: macos-26
+    runs-on: macos-14
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -127,7 +127,12 @@ jobs:
           dl="${RUNNER_TEMP}/driftpkg"
           mkdir -p "$dl"
           gh release download packages -R CutWire-Studios/Drift-Addons -D "$dl" \
-            -p deepfilternet.v3-1.0.0.driftpkg -p silero.vad-1.0.0.driftpkg -p onnxruntime.cpu.linux-x64-1.0.0.driftpkg
+            -p deepfilternet.v3-1.0.0.driftpkg -p silero.vad-1.0.0.driftpkg -p onnxruntime.cpu.linux-x64-1.0.0.driftpkg 2>/dev/null || {
+              echo "gh release download failed or unauthenticated; falling back to direct curl download..."
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/deepfilternet.v3-1.0.0.driftpkg" -o "$dl/deepfilternet.v3-1.0.0.driftpkg"
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/silero.vad-1.0.0.driftpkg" -o "$dl/silero.vad-1.0.0.driftpkg"
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/onnxruntime.cpu.linux-x64-1.0.0.driftpkg" -o "$dl/onnxruntime.cpu.linux-x64-1.0.0.driftpkg"
+          }
           python3 scripts/unpack-driftpkg.py "$dl/deepfilternet.v3-1.0.0.driftpkg" "${GITHUB_WORKSPACE}"
           python3 scripts/unpack-driftpkg.py "$dl/silero.vad-1.0.0.driftpkg" "${GITHUB_WORKSPACE}/drift-addons/staging/silero-vad"
           python3 scripts/unpack-driftpkg.py "$dl/onnxruntime.cpu.linux-x64-1.0.0.driftpkg" "${GITHUB_WORKSPACE}/.ort"
@@ -373,7 +378,12 @@ jobs:
           dl="${RUNNER_TEMP}/driftpkg"
           mkdir -p "$dl"
           gh release download packages -R CutWire-Studios/Drift-Addons -D "$dl" \
-            -p deepfilternet.v3-1.0.0.driftpkg -p silero.vad-1.0.0.driftpkg -p onnxruntime.cpu.osx-arm64-1.0.0.driftpkg
+            -p deepfilternet.v3-1.0.0.driftpkg -p silero.vad-1.0.0.driftpkg -p onnxruntime.cpu.osx-arm64-1.0.0.driftpkg 2>/dev/null || {
+              echo "gh release download failed or unauthenticated; falling back to direct curl download..."
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/deepfilternet.v3-1.0.0.driftpkg" -o "$dl/deepfilternet.v3-1.0.0.driftpkg"
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/silero.vad-1.0.0.driftpkg" -o "$dl/silero.vad-1.0.0.driftpkg"
+              curl -fsSL "https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages/onnxruntime.cpu.osx-arm64-1.0.0.driftpkg" -o "$dl/onnxruntime.cpu.osx-arm64-1.0.0.driftpkg"
+          }
           python3 scripts/unpack-driftpkg.py "$dl/deepfilternet.v3-1.0.0.driftpkg" "${GITHUB_WORKSPACE}"
           python3 scripts/unpack-driftpkg.py "$dl/silero.vad-1.0.0.driftpkg" "${GITHUB_WORKSPACE}/drift-addons/staging/silero-vad"
           python3 scripts/unpack-driftpkg.py "$dl/onnxruntime.cpu.osx-arm64-1.0.0.driftpkg" "${GITHUB_WORKSPACE}/.ort"

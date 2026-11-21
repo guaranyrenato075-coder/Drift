@@ -29,6 +29,10 @@ Item {
     function sendAiRequest(endpoint, payload, callback) {
         root.isBusy = true
         root.statusMessage = qsTr("Processando com IA...")
+        if (typeof EditorState !== "undefined" && EditorState && EditorState.mcp) {
+            if (EditorState.mcp.port > 0) payload.mcp_port = EditorState.mcp.port
+            if (EditorState.mcp.token) payload.mcp_token = EditorState.mcp.token
+        }
         const xhr = new XMLHttpRequest()
         xhr.open("POST", "http://127.0.0.1:8765/api/" + endpoint)
         xhr.setRequestHeader("Content-Type", "application/json")
@@ -122,8 +126,8 @@ Item {
                 ThemedTextField {
                     id: topicInput
                     width: parent.width - generateTopicBtn.width - Theme.spacingSm
-                    placeholderText: qsTr("Ex: Estoicismo, Universo, Produtividade...")
-                    text: "Estoicismo"
+                    placeholderText: qsTr("Ex: Mitologia Grega, Universo, História...")
+                    text: ""
                 }
 
                 ThemedButton {
@@ -208,7 +212,7 @@ Item {
                     font.pixelSize: Theme.fontSizeSm
                     color: "#ffffff"
                     placeholderText: qsTr("Digite ou cole seu roteiro aqui...")
-                    text: "CENA 01\nNARRAÇÃO: Você não controla tudo o que acontece.\nDESCRIÇÃO VISUAL: Um homem observa uma tempestade pela janela.\n\nCENA 02\nNARRAÇÃO: Mas pode controlar a maneira como reage.\nDESCRIÇÃO VISUAL: Uma pessoa meditando ao amanhecer."
+                    text: ""
                     background: Rectangle {
                         color: Theme.c.panelBackgroundDarker || "#1c1e22"
                         radius: 4
